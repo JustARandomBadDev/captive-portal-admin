@@ -10,4 +10,5 @@ type Repository interface {
 	ListAll(ctx context.Context) ([]Pitch, error)
 	Update(ctx context.Context, input PitchUpdateInput) (Pitch, error)
 	Disable(ctx context.Context, id string) (Pitch, error)
+	Enable(ctx context.Context, id string) (Pitch, error)
 }

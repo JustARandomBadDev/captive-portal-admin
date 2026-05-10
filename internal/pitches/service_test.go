@@ -74,9 +74,26 @@ func TestDisablePitch(t *testing.T) {
 	}
 }
 
+func TestEnablePitch(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository)
+
+	pitch, err := service.Enable(context.Background(), "pitch-id")
+	if err != nil {
+		t.Fatalf("enable pitch: %v", err)
+	}
+	if !pitch.IsActive {
+		t.Fatal("expected enabled pitch to be active")
+	}
+	if repository.enabledID != "pitch-id" {
+		t.Fatalf("expected enabled id pitch-id, got %q", repository.enabledID)
+	}
+}
+
 type fakeRepository struct {
 	created    PitchCreateInput
 	disabledID string
+	enabledID  string
 	pitches    []Pitch
 }
 
@@ -109,4 +126,9 @@ func (r *fakeRepository) Update(ctx context.Context, input PitchUpdateInput) (Pi
 func (r *fakeRepository) Disable(ctx context.Context, id string) (Pitch, error) {
 	r.disabledID = id
 	return Pitch{ID: id, Code: "A12", IsActive: false}, nil
+}
+
+func (r *fakeRepository) Enable(ctx context.Context, id string) (Pitch, error) {
+	r.enabledID = id
+	return Pitch{ID: id, Code: "A12", IsActive: true}, nil
 }

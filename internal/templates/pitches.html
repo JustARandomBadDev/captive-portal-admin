@@ -38,7 +38,9 @@
             <button class="secondary" type="submit">Desactiver</button>
           </form>
           {{ else }}
-          -
+          <form class="inline" method="post" action="/pitches/{{ .ID }}/enable">
+            <button class="secondary" type="submit">Reactiver</button>
+          </form>
           {{ end }}
         </td>
       </tr>

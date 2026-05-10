@@ -30,8 +30,16 @@ func (s *Service) ListAll(ctx context.Context) ([]Pitch, error) {
 	return s.repository.ListAll(ctx)
 }
 
+func (s *Service) ListActive(ctx context.Context) ([]Pitch, error) {
+	return s.repository.ListActive(ctx)
+}
+
 func (s *Service) Disable(ctx context.Context, id string) (Pitch, error) {
 	return s.repository.Disable(ctx, id)
+}
+
+func (s *Service) Enable(ctx context.Context, id string) (Pitch, error) {
+	return s.repository.Enable(ctx, id)
 }
 
 func (s *Service) Repository() Repository {

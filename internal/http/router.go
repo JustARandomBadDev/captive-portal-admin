@@ -49,10 +49,14 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /", router.dashboard)
 	mux.HandleFunc("GET /healthz", router.healthz)
 	mux.HandleFunc("GET /tickets", router.ticketList)
+	mux.HandleFunc("GET /tickets/new", router.ticketNew)
+	mux.HandleFunc("POST /tickets", router.ticketCreate)
+	mux.HandleFunc("POST /tickets/{id}/revoke", router.ticketRevoke)
 	mux.HandleFunc("GET /pitches", router.pitchList)
 	mux.HandleFunc("GET /pitches/new", router.pitchNew)
 	mux.HandleFunc("POST /pitches", router.pitchCreate)
 	mux.HandleFunc("POST /pitches/{id}/disable", router.pitchDisable)
+	mux.HandleFunc("POST /pitches/{id}/enable", router.pitchEnable)
 
 	return mux
 }
@@ -69,15 +73,6 @@ func (r *Router) dashboard(w http.ResponseWriter, req *http.Request) {
 		Heading:            "Dashboard",
 		Description:        "Vue d'ensemble du panel admin local.",
 		DatabaseConfigured: r.cfg.DatabaseURL != "",
-	})
-}
-
-func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
-	r.render(w, "tickets.html", pageData{
-		Title:       "Tickets WiFi",
-		ActiveNav:   "tickets",
-		Heading:     "Tickets WiFi",
-		Description: "Preparation de la gestion des tickets temporaires et de leur synchronisation FreeRADIUS.",
 	})
 }
 

@@ -1,8 +1,56 @@
 {{ template "layout-start" . }}
 <h1>{{ .Heading }}</h1>
 <p>{{ .Description }}</p>
+<div class="toolbar">
+  <span>{{ len .Tickets }} ticket{{ if ne (len .Tickets) 1 }}s{{ end }}</span>
+  <a class="button" href="/tickets/new">Nouveau ticket</a>
+</div>
+{{ if .Error }}
+<p class="error">L'action demandee n'a pas pu etre effectuee.</p>
+{{ end }}
 <section class="panel" aria-labelledby="tickets-title">
   <h2 id="tickets-title">Tickets temporaires</h2>
-  <p>Les modeles SQL et les actions de creation, revocation et impression seront ajoutes a l'etape suivante.</p>
+  {{ if .Tickets }}
+  <table>
+    <thead>
+      <tr>
+        <th>Identifiant</th>
+        <th>Mot de passe</th>
+        <th>Emplacement</th>
+        <th>Statut</th>
+        <th>Valide jusqu'au</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Tickets }}
+      <tr>
+        <td>{{ .Username }}</td>
+        <td>{{ .Password }}</td>
+        <td>{{ .PitchCode }}</td>
+        <td>
+          {{ if eq .Status "Actif" }}
+          <span class="badge">{{ .Status }}</span>
+          {{ else }}
+          <span class="badge inactive">{{ .Status }}</span>
+          {{ end }}
+        </td>
+        <td>{{ .ValidUntil }}</td>
+        <td>
+          {{ if .CanRevoke }}
+          <form class="inline" method="post" action="/tickets/{{ .ID }}/revoke">
+            <button class="secondary" type="submit">Revoquer</button>
+          </form>
+          {{ else }}
+          -
+          {{ end }}
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ else }}
+  <p>Aucun ticket pour l'instant.</p>
+  {{ end }}
 </section>
 {{ template "layout-end" . }}

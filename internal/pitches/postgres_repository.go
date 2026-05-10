@@ -116,6 +116,23 @@ RETURNING id::text, code, label, is_active, created_at, updated_at
 	return pitch, nil
 }
 
+func (r *PostgresRepository) Enable(ctx context.Context, id string) (Pitch, error) {
+	row := r.pool.QueryRow(ctx, `
+UPDATE pitches
+SET is_active = true,
+    updated_at = now()
+WHERE id = $1
+RETURNING id::text, code, label, is_active, created_at, updated_at
+`, id)
+
+	pitch, err := scanPitch(row)
+	if err != nil {
+		return Pitch{}, mapPostgresError(err)
+	}
+
+	return pitch, nil
+}
+
 func pitchSelectSQL() string {
 	return `
 SELECT id::text, code, label, is_active, created_at, updated_at

@@ -105,6 +105,25 @@ func (r *Router) pitchDisable(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, "/pitches", http.StatusSeeOther)
 }
 
+func (r *Router) pitchEnable(w http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	if id == "" {
+		http.NotFound(w, req)
+		return
+	}
+
+	if _, err := r.pitches.Enable(req.Context(), id); err != nil {
+		if errors.Is(err, pitches.ErrPitchNotFound) {
+			http.NotFound(w, req)
+			return
+		}
+		http.Redirect(w, req, "/pitches?error=enable", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, req, "/pitches", http.StatusSeeOther)
+}
+
 func (r *Router) renderPitchForm(w http.ResponseWriter, data pitchFormPageData) {
 	r.render(w, "pitch_new.html", data)
 }
