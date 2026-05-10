@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/JustARandomBadDev/captive-portal-admin/internal/radius"
 )
 
 var (
@@ -16,12 +19,19 @@ var (
 
 type Service struct {
 	repository Repository
+	radiusSync radius.Syncer
 	now        func() time.Time
 }
 
-func NewService(repository Repository) *Service {
+func NewService(repository Repository, syncer ...radius.Syncer) *Service {
+	radiusSync := radius.Syncer(radius.NoopSyncer{})
+	if len(syncer) > 0 && syncer[0] != nil {
+		radiusSync = syncer[0]
+	}
+
 	return &Service{
 		repository: repository,
+		radiusSync: radiusSync,
 		now:        time.Now,
 	}
 }
@@ -59,6 +69,9 @@ func (s *Service) Create(ctx context.Context, input TicketCreateInput) (Ticket, 
 
 		ticket, err := s.repository.Create(ctx, input)
 		if err == nil {
+			if err := s.radiusSync.ProvisionTicket(ctx, radiusTicket(ticket)); err != nil {
+				slog.WarnContext(ctx, "radius provision failed after ticket creation", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+			}
 			return ticket, nil
 		}
 		if !generateUsername || !errors.Is(err, ErrDuplicateUsername) {
@@ -83,11 +96,30 @@ func (s *Service) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, 
 		input.RevokedAt = s.now()
 	}
 
-	return s.repository.Revoke(ctx, input)
+	ticket, err := s.repository.Revoke(ctx, input)
+	if err != nil {
+		return Ticket{}, err
+	}
+	if err := s.radiusSync.RevokeTicket(ctx, radiusTicket(ticket)); err != nil {
+		slog.WarnContext(ctx, "radius revoke failed after ticket revocation", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+	}
+
+	return ticket, nil
 }
 
 func (s *Service) Repository() Repository {
 	return s.repository
+}
+
+func radiusTicket(ticket Ticket) radius.Ticket {
+	return radius.Ticket{
+		ID:                ticket.ID,
+		Username:          ticket.Username,
+		CleartextPassword: ticket.CleartextPassword,
+		PitchID:           ticket.PitchID,
+		ValidFrom:         ticket.ValidFrom,
+		ValidUntil:        ticket.ValidUntil,
+	}
 }
 
 func IsValidStatus(status TicketStatus) bool {

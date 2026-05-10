@@ -40,13 +40,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	ticketRepository := tickets.NewPostgresRepository(db)
 	pitchRepository := pitches.NewPostgresRepository(db)
+	radiusService := radius.NewService(radius.NoopSyncer{})
 
 	app := &App{
 		Config:    cfg,
 		DB:        db,
-		Tickets:   tickets.NewService(ticketRepository),
+		Tickets:   tickets.NewService(ticketRepository, radiusService),
 		Pitches:   pitches.NewService(pitchRepository),
-		Radius:    radius.NewService(db),
+		Radius:    radiusService,
 		AdminAuth: adminauth.NewService(cfg.SessionSecret),
 		Templates: views,
 	}

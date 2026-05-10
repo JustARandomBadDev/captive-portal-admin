@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/JustARandomBadDev/captive-portal-admin/internal/radius"
 )
 
 func TestIsValidStatus(t *testing.T) {
@@ -93,6 +95,49 @@ func TestCreateTicketGeneratesCredentials(t *testing.T) {
 	}
 }
 
+func TestCreateTicketCallsRadiusProvision(t *testing.T) {
+	syncer := &fakeRadiusSyncer{}
+	service := NewService(&fakeRepository{}, syncer)
+	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	ticket, err := service.Create(context.Background(), TicketCreateInput{
+		Username:          "ticket-001",
+		CleartextPassword: "temporary-password",
+		PitchID:           "pitch-001",
+		ValidFrom:         validFrom,
+		ValidUntil:        validFrom.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("create ticket: %v", err)
+	}
+	if syncer.provisioned.ID != ticket.ID {
+		t.Fatalf("expected provisioned ticket %q, got %q", ticket.ID, syncer.provisioned.ID)
+	}
+}
+
+func TestCreateTicketContinuesWhenRadiusProvisionFails(t *testing.T) {
+	syncer := &fakeRadiusSyncer{provisionErr: errors.New("radius unavailable")}
+	service := NewService(&fakeRepository{}, syncer)
+	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	ticket, err := service.Create(context.Background(), TicketCreateInput{
+		Username:          "ticket-001",
+		CleartextPassword: "temporary-password",
+		PitchID:           "pitch-001",
+		ValidFrom:         validFrom,
+		ValidUntil:        validFrom.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("expected admin ticket creation to continue, got %v", err)
+	}
+	if ticket.ID == "" {
+		t.Fatal("expected created ticket")
+	}
+	if syncer.provisioned.ID != ticket.ID {
+		t.Fatalf("expected provision attempt for %q, got %q", ticket.ID, syncer.provisioned.ID)
+	}
+}
+
 func TestCreateTicketRequiresPitch(t *testing.T) {
 	service := NewService(&fakeRepository{})
 	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
@@ -139,6 +184,35 @@ func TestRevokeTicket(t *testing.T) {
 	}
 	if !repository.revoked.RevokedAt.Equal(now) {
 		t.Fatalf("expected revoked_at %v, got %v", now, repository.revoked.RevokedAt)
+	}
+}
+
+func TestRevokeTicketCallsRadiusRevoke(t *testing.T) {
+	syncer := &fakeRadiusSyncer{}
+	service := NewService(&fakeRepository{}, syncer)
+
+	ticket, err := service.Revoke(context.Background(), TicketRevokeInput{ID: "ticket-id"})
+	if err != nil {
+		t.Fatalf("revoke ticket: %v", err)
+	}
+	if syncer.revoked.ID != ticket.ID {
+		t.Fatalf("expected revoked radius ticket %q, got %q", ticket.ID, syncer.revoked.ID)
+	}
+}
+
+func TestRevokeTicketContinuesWhenRadiusRevokeFails(t *testing.T) {
+	syncer := &fakeRadiusSyncer{revokeErr: errors.New("radius unavailable")}
+	service := NewService(&fakeRepository{}, syncer)
+
+	ticket, err := service.Revoke(context.Background(), TicketRevokeInput{ID: "ticket-id"})
+	if err != nil {
+		t.Fatalf("expected admin ticket revocation to continue, got %v", err)
+	}
+	if ticket.Status != TicketStatusRevoked {
+		t.Fatalf("expected revoked ticket, got %q", ticket.Status)
+	}
+	if syncer.revoked.ID != ticket.ID {
+		t.Fatalf("expected revoke attempt for %q, got %q", ticket.ID, syncer.revoked.ID)
 	}
 }
 
@@ -210,4 +284,28 @@ func (r *fakeRepository) MarkExpired(ctx context.Context, now time.Time) (int, e
 
 func (r *fakeRepository) DeleteOldExpired(ctx context.Context, before time.Time) (int, error) {
 	return 0, nil
+}
+
+type fakeRadiusSyncer struct {
+	provisioned  radius.Ticket
+	revoked      radius.Ticket
+	deleted      radius.Ticket
+	provisionErr error
+	revokeErr    error
+	deleteErr    error
+}
+
+func (s *fakeRadiusSyncer) ProvisionTicket(ctx context.Context, ticket radius.Ticket) error {
+	s.provisioned = ticket
+	return s.provisionErr
+}
+
+func (s *fakeRadiusSyncer) RevokeTicket(ctx context.Context, ticket radius.Ticket) error {
+	s.revoked = ticket
+	return s.revokeErr
+}
+
+func (s *fakeRadiusSyncer) DeleteExpiredTicket(ctx context.Context, ticket radius.Ticket) error {
+	s.deleted = ticket
+	return s.deleteErr
 }

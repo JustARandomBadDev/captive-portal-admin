@@ -80,17 +80,24 @@ docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 
 ## Variables d'environnement
 
-| Variable | Description | Defaut |
-| --- | --- | --- |
-| `APP_ADDR` | Adresse d'ecoute HTTP | `:8080` |
-| `DATABASE_URL` | URL PostgreSQL de la base metier admin | requis |
-| `SESSION_SECRET` | Secret de session pour la future auth admin | vide |
+| Variable         | Description                                 | Defaut  |
+| ---------------- | ------------------------------------------- | ------- |
+| `APP_ADDR`       | Adresse d'ecoute HTTP                       | `:8080` |
+| `DATABASE_URL`   | URL PostgreSQL de la base metier admin      | requis  |
+| `SESSION_SECRET` | Secret de session pour la future auth admin | vide    |
 
 ## Routes
 
 - `GET /` : dashboard placeholder.
-- `GET /tickets` : page placeholder des tickets WiFi.
-- `GET /pitches` : page placeholder des emplacements.
+- `GET /tickets` : liste des tickets WiFi.
+- `GET /tickets/new` : formulaire de creation d'un ticket.
+- `POST /tickets` : creation d'un ticket temporaire.
+- `POST /tickets/{id}/revoke` : revocation d'un ticket.
+- `GET /pitches` : liste des emplacements.
+- `GET /pitches/new` : formulaire de creation d'un emplacement.
+- `POST /pitches` : creation d'un emplacement.
+- `POST /pitches/{id}/disable` : desactivation d'un emplacement.
+- `POST /pitches/{id}/enable` : reactivation d'un emplacement.
 - `GET /healthz` : verifie PostgreSQL et retourne `OK`.
 
 ## Organisation backend
@@ -134,6 +141,21 @@ Les packages `tickets` et `pitches` exposent chacun une interface `Repository`
 et une implementation PostgreSQL explicite basee sur `pgxpool`. `internal/app`
 injecte ces repositories SQL au demarrage. Le serveur refuse de demarrer si
 `DATABASE_URL` est absent ou si PostgreSQL est inaccessible.
+
+## Synchronisation FreeRADIUS
+
+`internal/radius` expose une interface `Syncer` pour preparer le flux futur :
+
+```text
+admin panel -> RadiusSync -> FreeRADIUS DB
+```
+
+Le service tickets appelle cette interface apres creation ou revocation d'un
+ticket, mais l'adaptateur actuel est un no-op. Il ne se connecte pas a la base
+`radius`, n'ecrit pas dans `radcheck`, `radreply` ou `radusergroup`, et ne
+touche pas aux logs legaux. Une erreur de synchronisation ne rollback pas la
+donnee metier admin ; elle est journalisee pour permettre une reprise ou une
+sync asynchrone plus tard.
 
 ## Migrations PostgreSQL
 
