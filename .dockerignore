@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+bin/
+dist/
+tmp/
+coverage
+coverage.txt
+*.out
+*.test
+.env
+.env.*
+.DS_Store

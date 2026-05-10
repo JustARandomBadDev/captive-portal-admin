@@ -16,17 +16,66 @@ portail client.
 ## Lancement
 
 ```sh
-DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin_db?sslmode=disable" \
+APP_ADDR="127.0.0.1:8081" \
+DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
   go run ./cmd/admin-panel
 ```
 
 Ou via Make :
 
 ```sh
-DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin_db?sslmode=disable" make run
+APP_ADDR="127.0.0.1:8081" \
+DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
+  make run
 make build
 make test
 make fmt
+```
+
+## Docker
+
+Build local :
+
+```sh
+docker build -t captive-portal-admin:dev .
+```
+
+Run local, avec PostgreSQL disponible sur la machine :
+
+```sh
+docker run --rm \
+  -p 8081:8080 \
+  -e APP_ADDR=0.0.0.0:8080 \
+  -e DATABASE_URL="postgres://admin_user:admin_password@host.docker.internal:5432/admin?sslmode=disable" \
+  captive-portal-admin:dev
+```
+
+Dans le labo `../test-env`, le panel admin est expose sur :
+
+```text
+http://127.0.0.1:8081
+```
+
+Le conteneur ecoute en interne sur `0.0.0.0:8080` via `APP_ADDR`, avec le
+mapping Compose `8081:8080`. La base utilisee est exclusivement `admin` :
+
+```text
+postgres://admin_user:admin_password@postgres:5432/admin?sslmode=disable
+```
+
+Demarrage depuis `../test-env` :
+
+```sh
+docker compose up -d --build
+curl -i http://127.0.0.1:8081/healthz
+```
+
+Image GHCR publiee par la CI :
+
+```sh
+docker pull ghcr.io/justarandombaddev/captive-portal-admin:latest
+docker pull ghcr.io/justarandombaddev/captive-portal-admin:sha-<commit>
+docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 ```
 
 ## Variables d'environnement
@@ -89,7 +138,7 @@ injecte ces repositories SQL au demarrage. Le serveur refuse de demarrer si
 ## Migrations PostgreSQL
 
 Les migrations dans `migrations/` concernent uniquement la base metier du panel
-admin (`admin_db`). La migration initiale cree :
+admin (`admin`). La migration initiale cree :
 
 - `admin_users` : placeholder minimal pour la future authentification admin.
 - `pitches` : emplacements du camping.
