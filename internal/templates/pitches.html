@@ -1,8 +1,52 @@
 {{ template "layout-start" . }}
 <h1>{{ .Heading }}</h1>
 <p>{{ .Description }}</p>
+<div class="toolbar">
+  <span>{{ len .Pitches }} emplacement{{ if ne (len .Pitches) 1 }}s{{ end }}</span>
+  <a class="button" href="/pitches/new">Nouvel emplacement</a>
+</div>
+{{ if .Error }}
+<p class="error">L'action demandee n'a pas pu etre effectuee.</p>
+{{ end }}
 <section class="panel" aria-labelledby="pitches-title">
   <h2 id="pitches-title">Emplacements camping</h2>
-  <p>Les modeles SQL et les ecrans de gestion des emplacements seront ajoutes a l'etape suivante.</p>
+  {{ if .Pitches }}
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Libelle</th>
+        <th>Statut</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Pitches }}
+      <tr>
+        <td>{{ .Code }}</td>
+        <td>{{ if .Label }}{{ .Label }}{{ else }}-{{ end }}</td>
+        <td>
+          {{ if .IsActive }}
+          <span class="badge">Actif</span>
+          {{ else }}
+          <span class="badge inactive">Inactif</span>
+          {{ end }}
+        </td>
+        <td>
+          {{ if .IsActive }}
+          <form class="inline" method="post" action="/pitches/{{ .ID }}/disable">
+            <button class="secondary" type="submit">Desactiver</button>
+          </form>
+          {{ else }}
+          -
+          {{ end }}
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ else }}
+  <p>Aucun emplacement pour l'instant.</p>
+  {{ end }}
 </section>
 {{ template "layout-end" . }}

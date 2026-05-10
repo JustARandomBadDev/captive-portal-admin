@@ -17,11 +17,21 @@ func NewService(repository Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, input PitchCreateInput) (Pitch, error) {
-	if strings.TrimSpace(input.Code) == "" {
+	input.Code = strings.TrimSpace(input.Code)
+	input.Label = strings.TrimSpace(input.Label)
+	if input.Code == "" {
 		return Pitch{}, ErrPitchCodeRequired
 	}
 
 	return s.repository.Create(ctx, input)
+}
+
+func (s *Service) ListAll(ctx context.Context) ([]Pitch, error) {
+	return s.repository.ListAll(ctx)
+}
+
+func (s *Service) Disable(ctx context.Context, id string) (Pitch, error) {
+	return s.repository.Disable(ctx, id)
 }
 
 func (s *Service) Repository() Repository {

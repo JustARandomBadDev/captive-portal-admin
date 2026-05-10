@@ -50,11 +50,19 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /healthz", router.healthz)
 	mux.HandleFunc("GET /tickets", router.ticketList)
 	mux.HandleFunc("GET /pitches", router.pitchList)
+	mux.HandleFunc("GET /pitches/new", router.pitchNew)
+	mux.HandleFunc("POST /pitches", router.pitchCreate)
+	mux.HandleFunc("POST /pitches/{id}/disable", router.pitchDisable)
 
 	return mux
 }
 
 func (r *Router) dashboard(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/" {
+		http.NotFound(w, req)
+		return
+	}
+
 	r.render(w, "dashboard.html", pageData{
 		Title:              "Camping WiFi Admin",
 		ActiveNav:          "dashboard",
@@ -73,15 +81,6 @@ func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func (r *Router) pitchList(w http.ResponseWriter, req *http.Request) {
-	r.render(w, "pitches.html", pageData{
-		Title:       "Emplacements",
-		ActiveNav:   "pitches",
-		Heading:     "Emplacements",
-		Description: "Preparation de la gestion des emplacements du camping.",
-	})
-}
-
 func (r *Router) healthz(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 	defer cancel()
@@ -95,7 +94,7 @@ func (r *Router) healthz(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write([]byte("OK"))
 }
 
-func (r *Router) render(w http.ResponseWriter, name string, data pageData) {
+func (r *Router) render(w http.ResponseWriter, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := r.templates.ExecuteTemplate(w, name, data); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

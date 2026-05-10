@@ -74,12 +74,112 @@
       color: #4b5a50;
     }
 
+    a {
+      color: #1f5f43;
+    }
+
     .panel {
       margin-top: 24px;
       padding: 24px;
       border: 1px solid #d8dfd1;
       border-radius: 8px;
       background: #ffffff;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .button,
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid #9fb59f;
+      border-radius: 6px;
+      background: #2f6f4e;
+      color: #ffffff;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .button.secondary,
+    button.secondary {
+      background: #ffffff;
+      color: #2f4b38;
+    }
+
+    .error {
+      margin-top: 20px;
+      padding: 12px;
+      border: 1px solid #d7a2a2;
+      border-radius: 6px;
+      background: #fff4f4;
+      color: #7d2020;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #e4e8df;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      font-size: 0.9rem;
+      color: #405346;
+    }
+
+    form.inline {
+      display: inline;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 6px;
+      font-weight: 600;
+    }
+
+    input {
+      width: min(100%, 420px);
+      box-sizing: border-box;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid #b8c5b2;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #e5eddf;
+      color: #24452f;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .badge.inactive {
+      background: #eeeeea;
+      color: #62675f;
     }
   </style>
 </head>
