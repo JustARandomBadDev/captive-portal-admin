@@ -1,0 +1,10 @@
+{{ template "layout-start" . }}
+<h1>{{ .Heading }}</h1>
+<p>{{ .Description }}</p>
+<section class="panel" aria-labelledby="status-title">
+  <h2 id="status-title">Etat de preparation</h2>
+  <p>PostgreSQL : {{ if .DatabaseConfigured }}configuration presente{{ else }}configuration en attente{{ end }}</p>
+  <p>FreeRADIUS : synchronisation non activee</p>
+  <p>Authentification admin : non activee</p>
+</section>
+{{ template "layout-end" . }}
