@@ -26,7 +26,7 @@ func TestIsValidStatus(t *testing.T) {
 }
 
 func TestCreateTicketWithCoherentDates(t *testing.T) {
-	service := NewService(NewMemoryRepository())
+	service := NewService(fakeRepository{})
 	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 	validUntil := validFrom.Add(24 * time.Hour)
 
@@ -51,7 +51,7 @@ func TestCreateTicketWithCoherentDates(t *testing.T) {
 }
 
 func TestCreateTicketRejectsInvalidDates(t *testing.T) {
-	service := NewService(NewMemoryRepository())
+	service := NewService(fakeRepository{})
 	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 
 	_, err := service.Create(context.Background(), TicketCreateInput{
@@ -65,4 +65,44 @@ func TestCreateTicketRejectsInvalidDates(t *testing.T) {
 	if !errors.Is(err, ErrInvalidTicketDates) {
 		t.Fatalf("expected ErrInvalidTicketDates, got %v", err)
 	}
+}
+
+type fakeRepository struct{}
+
+func (fakeRepository) Create(ctx context.Context, input TicketCreateInput) (Ticket, error) {
+	return Ticket{
+		ID:                "ticket-id",
+		Username:          input.Username,
+		CleartextPassword: input.CleartextPassword,
+		PitchID:           input.PitchID,
+		Status:            TicketStatusActive,
+		ValidFrom:         input.ValidFrom,
+		ValidUntil:        input.ValidUntil,
+		CreatedBy:         input.CreatedBy,
+		CreatedAt:         input.ValidFrom,
+	}, nil
+}
+
+func (fakeRepository) GetByID(ctx context.Context, id string) (Ticket, error) {
+	return Ticket{}, nil
+}
+
+func (fakeRepository) ListActive(ctx context.Context, now time.Time) ([]Ticket, error) {
+	return nil, nil
+}
+
+func (fakeRepository) ListAll(ctx context.Context) ([]Ticket, error) {
+	return nil, nil
+}
+
+func (fakeRepository) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, error) {
+	return Ticket{}, nil
+}
+
+func (fakeRepository) MarkExpired(ctx context.Context, now time.Time) (int, error) {
+	return 0, nil
+}
+
+func (fakeRepository) DeleteOldExpired(ctx context.Context, before time.Time) (int, error) {
+	return 0, nil
 }

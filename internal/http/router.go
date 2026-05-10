@@ -1,16 +1,20 @@
 package http
 
 import (
+	"context"
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/config"
+	"github.com/JustARandomBadDev/captive-portal-admin/internal/database"
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/pitches"
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/tickets"
 )
 
 type Dependencies struct {
 	Config    config.Config
+	DB        *database.Handle
 	Templates *template.Template
 	Tickets   *tickets.Service
 	Pitches   *pitches.Service
@@ -18,6 +22,7 @@ type Dependencies struct {
 
 type Router struct {
 	cfg       config.Config
+	db        *database.Handle
 	templates *template.Template
 	tickets   *tickets.Service
 	pitches   *pitches.Service
@@ -34,6 +39,7 @@ type pageData struct {
 func NewRouter(deps Dependencies) http.Handler {
 	router := &Router{
 		cfg:       deps.Config,
+		db:        deps.DB,
 		templates: deps.Templates,
 		tickets:   deps.Tickets,
 		pitches:   deps.Pitches,
@@ -77,6 +83,13 @@ func (r *Router) pitchList(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) healthz(w http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+	if err := r.db.Ping(ctx); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK"))

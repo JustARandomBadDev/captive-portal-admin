@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreatePitchRequiresCode(t *testing.T) {
-	service := NewService(NewMemoryRepository())
+	service := NewService(fakeRepository{})
 
 	_, err := service.Create(context.Background(), PitchCreateInput{
 		Code:  " ",
@@ -19,7 +19,7 @@ func TestCreatePitchRequiresCode(t *testing.T) {
 }
 
 func TestCreatePitch(t *testing.T) {
-	service := NewService(NewMemoryRepository())
+	service := NewService(fakeRepository{})
 
 	pitch, err := service.Create(context.Background(), PitchCreateInput{
 		Code:  "A12",
@@ -35,4 +35,35 @@ func TestCreatePitch(t *testing.T) {
 	if !pitch.IsActive {
 		t.Fatal("expected new pitch to be active")
 	}
+}
+
+type fakeRepository struct{}
+
+func (fakeRepository) Create(ctx context.Context, input PitchCreateInput) (Pitch, error) {
+	return Pitch{
+		ID:       "pitch-id",
+		Code:     input.Code,
+		Label:    input.Label,
+		IsActive: true,
+	}, nil
+}
+
+func (fakeRepository) GetByID(ctx context.Context, id string) (Pitch, error) {
+	return Pitch{}, nil
+}
+
+func (fakeRepository) ListActive(ctx context.Context) ([]Pitch, error) {
+	return nil, nil
+}
+
+func (fakeRepository) ListAll(ctx context.Context) ([]Pitch, error) {
+	return nil, nil
+}
+
+func (fakeRepository) Update(ctx context.Context, input PitchUpdateInput) (Pitch, error) {
+	return Pitch{}, nil
+}
+
+func (fakeRepository) Disable(ctx context.Context, id string) (Pitch, error) {
+	return Pitch{}, nil
 }

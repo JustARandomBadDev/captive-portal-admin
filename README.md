@@ -16,13 +16,14 @@ portail client.
 ## Lancement
 
 ```sh
-go run ./cmd/admin-panel
+DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin_db?sslmode=disable" \
+  go run ./cmd/admin-panel
 ```
 
 Ou via Make :
 
 ```sh
-make run
+DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin_db?sslmode=disable" make run
 make build
 make test
 make fmt
@@ -33,7 +34,7 @@ make fmt
 | Variable | Description | Defaut |
 | --- | --- | --- |
 | `APP_ADDR` | Adresse d'ecoute HTTP | `:8080` |
-| `DATABASE_URL` | URL PostgreSQL cible | vide |
+| `DATABASE_URL` | URL PostgreSQL de la base metier admin | requis |
 | `SESSION_SECRET` | Secret de session pour la future auth admin | vide |
 
 ## Routes
@@ -41,7 +42,7 @@ make fmt
 - `GET /` : dashboard placeholder.
 - `GET /tickets` : page placeholder des tickets WiFi.
 - `GET /pitches` : page placeholder des emplacements.
-- `GET /healthz` : retourne `OK`.
+- `GET /healthz` : verifie PostgreSQL et retourne `OK`.
 
 ## Organisation backend
 
@@ -49,7 +50,7 @@ make fmt
 - `internal/app` : assemblage de l'application.
 - `internal/config` : configuration par variables d'environnement.
 - `internal/http` : routeur et handlers HTTP.
-- `internal/database` : placeholder du futur acces PostgreSQL.
+- `internal/database` : connexion PostgreSQL via `pgxpool`.
 - `internal/tickets` : service metier tickets WiFi.
 - `internal/pitches` : service metier emplacements.
 - `internal/radius` : service de synchronisation FreeRADIUS futur.
@@ -58,8 +59,8 @@ make fmt
 
 ## Modeles metier
 
-Le panel admin prepare deux agregats principaux, sans ORM lourd et sans requetes
-SQL concretes pour l'instant.
+Le panel admin gere deux agregats principaux, sans ORM lourd et avec des
+repositories PostgreSQL explicites.
 
 `Ticket` represente un acces WiFi temporaire :
 
@@ -80,7 +81,21 @@ SQL concretes pour l'instant.
 - activation ou desactivation
 - timestamps de creation et mise a jour
 
-Les packages `tickets` et `pitches` exposent chacun une interface `Repository`.
-L'implementation actuelle est un repository memoire de developpement, injecte
-par `internal/app`. Les futures migrations SQL devront creer des tables metier
-admin separees des tables FreeRADIUS et des logs legaux du portail captif.
+Les packages `tickets` et `pitches` exposent chacun une interface `Repository`
+et une implementation PostgreSQL explicite basee sur `pgxpool`. `internal/app`
+injecte ces repositories SQL au demarrage. Le serveur refuse de demarrer si
+`DATABASE_URL` est absent ou si PostgreSQL est inaccessible.
+
+## Migrations PostgreSQL
+
+Les migrations dans `migrations/` concernent uniquement la base metier du panel
+admin (`admin_db`). La migration initiale cree :
+
+- `admin_users` : placeholder minimal pour la future authentification admin.
+- `pitches` : emplacements du camping.
+- `wifi_tickets` : tickets WiFi temporaires lies aux emplacements.
+
+FreeRADIUS conserve ses propres tables techniques dans la base RADIUS
+(`radcheck`, `radreply`, `radacct`, `radpostauth`, etc.). Les logs legaux de
+connexion restent geres par le projet voisin `captive-portal` et sa base
+applicative. Le panel admin ne cree pas et ne purge pas ces logs.

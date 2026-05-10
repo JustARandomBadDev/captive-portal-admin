@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"html/template"
 	"net/http"
 	"time"
@@ -27,15 +28,18 @@ type App struct {
 	HTTPRouter http.Handler
 }
 
-func New(cfg config.Config) (*App, error) {
+func New(ctx context.Context, cfg config.Config) (*App, error) {
 	views, err := template.ParseFS(templates.FS, "*.html")
 	if err != nil {
 		return nil, err
 	}
 
-	db := database.New(database.Config{URL: cfg.DatabaseURL})
-	ticketRepository := tickets.NewMemoryRepository()
-	pitchRepository := pitches.NewMemoryRepository()
+	db, err := database.Connect(ctx, database.Config{URL: cfg.DatabaseURL})
+	if err != nil {
+		return nil, err
+	}
+	ticketRepository := tickets.NewPostgresRepository(db)
+	pitchRepository := pitches.NewPostgresRepository(db)
 
 	app := &App{
 		Config:    cfg,
@@ -49,6 +53,7 @@ func New(cfg config.Config) (*App, error) {
 
 	handler := adminhttp.NewRouter(adminhttp.Dependencies{
 		Config:    cfg,
+		DB:        db,
 		Templates: views,
 		Tickets:   app.Tickets,
 		Pitches:   app.Pitches,
@@ -65,4 +70,8 @@ func New(cfg config.Config) (*App, error) {
 	}
 
 	return app, nil
+}
+
+func (a *App) Close() {
+	a.DB.Close()
 }

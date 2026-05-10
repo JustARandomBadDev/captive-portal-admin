@@ -14,11 +14,13 @@ import (
 
 func main() {
 	cfg := config.Load()
+	ctx := context.Background()
 
-	application, err := app.New(cfg)
+	application, err := app.New(ctx, cfg)
 	if err != nil {
 		log.Fatalf("init app: %v", err)
 	}
+	defer application.Close()
 
 	log.Printf("admin panel listening on %s", cfg.AppAddr)
 
