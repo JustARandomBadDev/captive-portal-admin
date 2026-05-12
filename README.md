@@ -18,6 +18,7 @@ portail client.
 ```sh
 APP_ADDR="127.0.0.1:8081" \
 DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
+RADIUS_DATABASE_URL="postgres://radius_user:radius_dev_password@127.0.0.1:5432/radius?sslmode=disable" \
   go run ./cmd/admin-panel
 ```
 
@@ -26,6 +27,7 @@ Ou via Make :
 ```sh
 APP_ADDR="127.0.0.1:8081" \
 DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
+RADIUS_DATABASE_URL="postgres://radius_user:radius_dev_password@127.0.0.1:5432/radius?sslmode=disable" \
   make run
 make build
 make test
@@ -47,6 +49,7 @@ docker run --rm \
   -p 8081:8080 \
   -e APP_ADDR=0.0.0.0:8080 \
   -e DATABASE_URL="postgres://admin_user:admin_password@host.docker.internal:5432/admin?sslmode=disable" \
+  -e RADIUS_DATABASE_URL="postgres://radius_user:radius_dev_password@host.docker.internal:5432/radius?sslmode=disable" \
   captive-portal-admin:dev
 ```
 
@@ -57,10 +60,16 @@ http://127.0.0.1:8081
 ```
 
 Le conteneur ecoute en interne sur `0.0.0.0:8080` via `APP_ADDR`, avec le
-mapping Compose `8081:8080`. La base utilisee est exclusivement `admin` :
+mapping Compose `8081:8080`. La base metier admin utilisee est `admin` :
 
 ```text
 postgres://admin_user:admin_password@postgres:5432/admin?sslmode=disable
+```
+
+La synchronisation FreeRADIUS utilise une connexion separee vers `radius` :
+
+```text
+postgres://radius_user:radius_dev_password@postgres:5432/radius?sslmode=disable
 ```
 
 Demarrage depuis `../test-env` :
@@ -80,11 +89,12 @@ docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 
 ## Variables d'environnement
 
-| Variable         | Description                                 | Defaut  |
-| ---------------- | ------------------------------------------- | ------- |
-| `APP_ADDR`       | Adresse d'ecoute HTTP                       | `:8080` |
-| `DATABASE_URL`   | URL PostgreSQL de la base metier admin      | requis  |
-| `SESSION_SECRET` | Secret de session pour la future auth admin | vide    |
+| Variable              | Description                                 | Defaut  |
+| --------------------- | ------------------------------------------- | ------- |
+| `APP_ADDR`            | Adresse d'ecoute HTTP                       | `:8080` |
+| `DATABASE_URL`        | URL PostgreSQL de la base metier admin      | requis  |
+| `RADIUS_DATABASE_URL` | URL PostgreSQL de la base FreeRADIUS        | requis  |
+| `SESSION_SECRET`      | Secret de session pour la future auth admin | vide    |
 
 ## Routes
 
@@ -140,22 +150,39 @@ repositories PostgreSQL explicites.
 Les packages `tickets` et `pitches` exposent chacun une interface `Repository`
 et une implementation PostgreSQL explicite basee sur `pgxpool`. `internal/app`
 injecte ces repositories SQL au demarrage. Le serveur refuse de demarrer si
-`DATABASE_URL` est absent ou si PostgreSQL est inaccessible.
+`DATABASE_URL`, `RADIUS_DATABASE_URL` ou PostgreSQL sont indisponibles.
 
 ## Synchronisation FreeRADIUS
 
-`internal/radius` expose une interface `Syncer` pour preparer le flux futur :
+`internal/radius` expose une interface `Syncer` pour isoler le flux :
 
 ```text
 admin panel -> RadiusSync -> FreeRADIUS DB
 ```
 
-Le service tickets appelle cette interface apres creation ou revocation d'un
-ticket, mais l'adaptateur actuel est un no-op. Il ne se connecte pas a la base
-`radius`, n'ecrit pas dans `radcheck`, `radreply` ou `radusergroup`, et ne
-touche pas aux logs legaux. Une erreur de synchronisation ne rollback pas la
-donnee metier admin ; elle est journalisee pour permettre une reprise ou une
-sync asynchrone plus tard.
+Le service tickets appelle cette interface apres creation, expiration ou
+revocation d'un ticket. L'implementation PostgreSQL ouvre une connexion dediee
+vers `radius` via `RADIUS_DATABASE_URL` et ne reutilise jamais la connexion
+`admin`.
+
+Creation d'un ticket :
+
+- cree ou reactive l'entree `radius_users` ;
+- remplace les check items `radcheck` du ticket ;
+- ajoute `Cleartext-Password := <mot de passe>` ;
+- ajoute `Expiration := <date de fin>` pour que FreeRADIUS refuse le ticket
+  apres `valid_until`.
+
+Revocation ou expiration :
+
+- supprime les credentials `radcheck` ;
+- supprime les reponses/groupes eventuels du username ;
+- desactive `radius_users`.
+
+Une erreur de synchronisation ne rollback pas la donnee metier admin ; elle est
+journalisee pour permettre une reprise ou une sync asynchrone plus tard. Le
+champ `wifi_tickets.radius_synced_at` est mis a jour uniquement apres une sync
+reussie. Les logs legaux restent geres par `captive-portal`.
 
 ## Migrations PostgreSQL
 

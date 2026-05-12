@@ -97,8 +97,10 @@ func TestCreateTicketGeneratesCredentials(t *testing.T) {
 
 func TestCreateTicketCallsRadiusProvision(t *testing.T) {
 	syncer := &fakeRadiusSyncer{}
-	service := NewService(&fakeRepository{}, syncer)
+	repository := &fakeRepository{}
+	service := NewService(repository, syncer)
 	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return validFrom }
 
 	ticket, err := service.Create(context.Background(), TicketCreateInput{
 		Username:          "ticket-001",
@@ -113,11 +115,15 @@ func TestCreateTicketCallsRadiusProvision(t *testing.T) {
 	if syncer.provisioned.ID != ticket.ID {
 		t.Fatalf("expected provisioned ticket %q, got %q", ticket.ID, syncer.provisioned.ID)
 	}
+	if repository.radiusSyncedID != ticket.ID {
+		t.Fatalf("expected radius sync mark for %q, got %q", ticket.ID, repository.radiusSyncedID)
+	}
 }
 
 func TestCreateTicketContinuesWhenRadiusProvisionFails(t *testing.T) {
 	syncer := &fakeRadiusSyncer{provisionErr: errors.New("radius unavailable")}
-	service := NewService(&fakeRepository{}, syncer)
+	repository := &fakeRepository{}
+	service := NewService(repository, syncer)
 	validFrom := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 
 	ticket, err := service.Create(context.Background(), TicketCreateInput{
@@ -135,6 +141,9 @@ func TestCreateTicketContinuesWhenRadiusProvisionFails(t *testing.T) {
 	}
 	if syncer.provisioned.ID != ticket.ID {
 		t.Fatalf("expected provision attempt for %q, got %q", ticket.ID, syncer.provisioned.ID)
+	}
+	if repository.radiusSyncedID != "" {
+		t.Fatalf("expected no radius sync mark on failure, got %q", repository.radiusSyncedID)
 	}
 }
 
@@ -166,6 +175,35 @@ func TestListAllMarksExpired(t *testing.T) {
 	}
 }
 
+func TestListAllDeletesExpiredRadiusCredentials(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	repository := &fakeRepository{
+		tickets: []Ticket{
+			{
+				ID:         "expired-ticket",
+				Username:   "expired-user",
+				Status:     TicketStatusExpired,
+				ValidFrom:  now.Add(-2 * time.Hour),
+				ValidUntil: now.Add(-time.Hour),
+			},
+		},
+	}
+	syncer := &fakeRadiusSyncer{}
+	service := NewService(repository, syncer)
+	service.now = func() time.Time { return now }
+
+	_, err := service.ListAll(context.Background())
+	if err != nil {
+		t.Fatalf("list tickets: %v", err)
+	}
+	if syncer.deleted.ID != "expired-ticket" {
+		t.Fatalf("expected expired ticket cleanup, got %q", syncer.deleted.ID)
+	}
+	if repository.radiusSyncedID != "expired-ticket" {
+		t.Fatalf("expected radius sync mark for expired ticket, got %q", repository.radiusSyncedID)
+	}
+}
+
 func TestRevokeTicket(t *testing.T) {
 	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 	repository := &fakeRepository{}
@@ -189,7 +227,8 @@ func TestRevokeTicket(t *testing.T) {
 
 func TestRevokeTicketCallsRadiusRevoke(t *testing.T) {
 	syncer := &fakeRadiusSyncer{}
-	service := NewService(&fakeRepository{}, syncer)
+	repository := &fakeRepository{}
+	service := NewService(repository, syncer)
 
 	ticket, err := service.Revoke(context.Background(), TicketRevokeInput{ID: "ticket-id"})
 	if err != nil {
@@ -198,11 +237,15 @@ func TestRevokeTicketCallsRadiusRevoke(t *testing.T) {
 	if syncer.revoked.ID != ticket.ID {
 		t.Fatalf("expected revoked radius ticket %q, got %q", ticket.ID, syncer.revoked.ID)
 	}
+	if repository.radiusSyncedID != ticket.ID {
+		t.Fatalf("expected radius sync mark for %q, got %q", ticket.ID, repository.radiusSyncedID)
+	}
 }
 
 func TestRevokeTicketContinuesWhenRadiusRevokeFails(t *testing.T) {
 	syncer := &fakeRadiusSyncer{revokeErr: errors.New("radius unavailable")}
-	service := NewService(&fakeRepository{}, syncer)
+	repository := &fakeRepository{}
+	service := NewService(repository, syncer)
 
 	ticket, err := service.Revoke(context.Background(), TicketRevokeInput{ID: "ticket-id"})
 	if err != nil {
@@ -213,6 +256,9 @@ func TestRevokeTicketContinuesWhenRadiusRevokeFails(t *testing.T) {
 	}
 	if syncer.revoked.ID != ticket.ID {
 		t.Fatalf("expected revoke attempt for %q, got %q", ticket.ID, syncer.revoked.ID)
+	}
+	if repository.radiusSyncedID != "" {
+		t.Fatalf("expected no radius sync mark on failure, got %q", repository.radiusSyncedID)
 	}
 }
 
@@ -240,9 +286,11 @@ func TestGeneratePassword(t *testing.T) {
 }
 
 type fakeRepository struct {
-	created       TicketCreateInput
-	revoked       TicketRevokeInput
-	markExpiredAt time.Time
+	created        TicketCreateInput
+	revoked        TicketRevokeInput
+	markExpiredAt  time.Time
+	radiusSyncedID string
+	tickets        []Ticket
 }
 
 func (r *fakeRepository) Create(ctx context.Context, input TicketCreateInput) (Ticket, error) {
@@ -269,7 +317,7 @@ func (r *fakeRepository) ListActive(ctx context.Context, now time.Time) ([]Ticke
 }
 
 func (r *fakeRepository) ListAll(ctx context.Context) ([]Ticket, error) {
-	return nil, nil
+	return r.tickets, nil
 }
 
 func (r *fakeRepository) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, error) {
@@ -280,6 +328,11 @@ func (r *fakeRepository) Revoke(ctx context.Context, input TicketRevokeInput) (T
 func (r *fakeRepository) MarkExpired(ctx context.Context, now time.Time) (int, error) {
 	r.markExpiredAt = now
 	return 0, nil
+}
+
+func (r *fakeRepository) MarkRadiusSynced(ctx context.Context, id string, syncedAt time.Time) error {
+	r.radiusSyncedID = id
+	return nil
 }
 
 func (r *fakeRepository) DeleteOldExpired(ctx context.Context, before time.Time) (int, error) {

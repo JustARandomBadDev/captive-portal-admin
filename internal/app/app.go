@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"net/http"
 	"time"
@@ -19,6 +20,7 @@ import (
 type App struct {
 	Config     config.Config
 	DB         *database.Handle
+	RadiusDB   *database.Handle
 	Server     *http.Server
 	Tickets    *tickets.Service
 	Pitches    *pitches.Service
@@ -38,13 +40,24 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.RadiusDatabaseURL == "" {
+		db.Close()
+		return nil, errors.New("RADIUS_DATABASE_URL is required")
+	}
+	radiusDB, err := database.Connect(ctx, database.Config{URL: cfg.RadiusDatabaseURL})
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
 	ticketRepository := tickets.NewPostgresRepository(db)
 	pitchRepository := pitches.NewPostgresRepository(db)
-	radiusService := radius.NewService(radius.NoopSyncer{})
+	radiusService := radius.NewService(radius.NewPostgresSyncer(radiusDB))
 
 	app := &App{
 		Config:    cfg,
 		DB:        db,
+		RadiusDB:  radiusDB,
 		Tickets:   tickets.NewService(ticketRepository, radiusService),
 		Pitches:   pitches.NewService(pitchRepository),
 		Radius:    radiusService,
@@ -55,6 +68,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	handler := adminhttp.NewRouter(adminhttp.Dependencies{
 		Config:    cfg,
 		DB:        db,
+		RadiusDB:  radiusDB,
 		Templates: views,
 		Tickets:   app.Tickets,
 		Pitches:   app.Pitches,
@@ -75,4 +89,5 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 func (a *App) Close() {
 	a.DB.Close()
+	a.RadiusDB.Close()
 }

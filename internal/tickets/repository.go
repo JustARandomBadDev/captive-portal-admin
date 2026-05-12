@@ -13,5 +13,6 @@ type Repository interface {
 	ListAll(ctx context.Context) ([]Ticket, error)
 	Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, error)
 	MarkExpired(ctx context.Context, now time.Time) (int, error)
+	MarkRadiusSynced(ctx context.Context, id string, syncedAt time.Time) error
 	DeleteOldExpired(ctx context.Context, before time.Time) (int, error)
 }

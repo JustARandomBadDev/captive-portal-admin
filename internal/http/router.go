@@ -15,6 +15,7 @@ import (
 type Dependencies struct {
 	Config    config.Config
 	DB        *database.Handle
+	RadiusDB  *database.Handle
 	Templates *template.Template
 	Tickets   *tickets.Service
 	Pitches   *pitches.Service
@@ -23,6 +24,7 @@ type Dependencies struct {
 type Router struct {
 	cfg       config.Config
 	db        *database.Handle
+	radiusDB  *database.Handle
 	templates *template.Template
 	tickets   *tickets.Service
 	pitches   *pitches.Service
@@ -40,6 +42,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	router := &Router{
 		cfg:       deps.Config,
 		db:        deps.DB,
+		radiusDB:  deps.RadiusDB,
 		templates: deps.Templates,
 		tickets:   deps.Tickets,
 		pitches:   deps.Pitches,
@@ -80,7 +83,11 @@ func (r *Router) healthz(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 	defer cancel()
 	if err := r.db.Ping(ctx); err != nil {
-		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		http.Error(w, "admin database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := r.radiusDB.Ping(ctx); err != nil {
+		http.Error(w, "radius database unavailable", http.StatusServiceUnavailable)
 		return
 	}
 

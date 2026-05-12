@@ -104,7 +104,8 @@ func (r *PostgresRepository) Revoke(ctx context.Context, input TicketRevokeInput
 UPDATE wifi_tickets
 SET status = $2,
     revoked_at = $3,
-    revoked_by = $4
+    revoked_by = $4,
+    radius_synced_at = NULL
 WHERE id = $1
 RETURNING
     id::text, username, cleartext_password, pitch_id::text, status,
@@ -128,7 +129,8 @@ RETURNING
 func (r *PostgresRepository) MarkExpired(ctx context.Context, now time.Time) (int, error) {
 	tag, err := r.pool.Exec(ctx, `
 UPDATE wifi_tickets
-SET status = $1
+SET status = $1,
+    radius_synced_at = NULL
 WHERE status = $2
   AND valid_until <= $3
 `, TicketStatusExpired, TicketStatusActive, now)
@@ -137,6 +139,22 @@ WHERE status = $2
 	}
 
 	return int(tag.RowsAffected()), nil
+}
+
+func (r *PostgresRepository) MarkRadiusSynced(ctx context.Context, id string, syncedAt time.Time) error {
+	tag, err := r.pool.Exec(ctx, `
+UPDATE wifi_tickets
+SET radius_synced_at = $2
+WHERE id = $1
+`, id, syncedAt)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrTicketNotFound
+	}
+
+	return nil
 }
 
 func (r *PostgresRepository) DeleteOldExpired(ctx context.Context, before time.Time) (int, error) {

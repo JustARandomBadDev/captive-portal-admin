@@ -71,6 +71,8 @@ func (s *Service) Create(ctx context.Context, input TicketCreateInput) (Ticket, 
 		if err == nil {
 			if err := s.radiusSync.ProvisionTicket(ctx, radiusTicket(ticket)); err != nil {
 				slog.WarnContext(ctx, "radius provision failed after ticket creation", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+			} else {
+				s.markRadiusSynced(ctx, ticket)
 			}
 			return ticket, nil
 		}
@@ -86,7 +88,24 @@ func (s *Service) ListAll(ctx context.Context) ([]Ticket, error) {
 	if _, err := s.repository.MarkExpired(ctx, s.now()); err != nil {
 		return nil, err
 	}
-	return s.repository.ListAll(ctx)
+
+	tickets, err := s.repository.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ticket := range tickets {
+		if ticket.Status != TicketStatusExpired || ticket.RadiusSyncedAt != nil {
+			continue
+		}
+		if err := s.radiusSync.DeleteExpiredTicket(ctx, radiusTicket(ticket)); err != nil {
+			slog.WarnContext(ctx, "radius expired ticket cleanup failed", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+			continue
+		}
+		s.markRadiusSynced(ctx, ticket)
+	}
+
+	return tickets, nil
 }
 
 func (s *Service) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, error) {
@@ -102,6 +121,8 @@ func (s *Service) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, 
 	}
 	if err := s.radiusSync.RevokeTicket(ctx, radiusTicket(ticket)); err != nil {
 		slog.WarnContext(ctx, "radius revoke failed after ticket revocation", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+	} else {
+		s.markRadiusSynced(ctx, ticket)
 	}
 
 	return ticket, nil
@@ -109,6 +130,12 @@ func (s *Service) Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, 
 
 func (s *Service) Repository() Repository {
 	return s.repository
+}
+
+func (s *Service) markRadiusSynced(ctx context.Context, ticket Ticket) {
+	if err := s.repository.MarkRadiusSynced(ctx, ticket.ID, s.now()); err != nil {
+		slog.WarnContext(ctx, "mark radius sync failed", "ticket_id", ticket.ID, "username", ticket.Username, "error", err)
+	}
 }
 
 func radiusTicket(ticket Ticket) radius.Ticket {
