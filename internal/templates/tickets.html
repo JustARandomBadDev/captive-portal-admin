@@ -6,7 +6,7 @@
   <a class="button" href="/tickets/new">Nouveau ticket</a>
 </div>
 {{ if .Error }}
-<p class="error">L'action demandee n'a pas pu etre effectuee.</p>
+<p class="error">L'action demandée n'a pas pu être effectuée.</p>
 {{ end }}
 <section class="panel" aria-labelledby="tickets-title">
   <h2 id="tickets-title">Tickets temporaires</h2>
@@ -39,7 +39,7 @@
         <td>
           {{ if .CanRevoke }}
           <form class="inline" method="post" action="/tickets/{{ .ID }}/revoke">
-            <button class="secondary" type="submit">Revoquer</button>
+            <button class="secondary" type="submit">Révoquer</button>
           </form>
           {{ else }}
           -

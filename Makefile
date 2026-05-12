@@ -1,7 +1,16 @@
-.PHONY: run build test fmt
+.PHONY: help run build test fmt docker-build
 
 GOCACHE ?= /tmp/go-build
 GOMODCACHE ?= /tmp/go-mod
+IMAGE_NAME ?= camping/captive-portal-admin
+IMAGE_TAG ?= dev
+
+help:
+	@echo "run          Run admin panel locally"
+	@echo "build        Build Go binary"
+	@echo "test         Run Go tests"
+	@echo "fmt          Format Go files"
+	@echo "docker-build Build Docker image"
 
 run:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go run ./cmd/admin-panel
@@ -14,3 +23,6 @@ test:
 
 fmt:
 	gofmt -w ./cmd ./internal
+
+docker-build:
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .

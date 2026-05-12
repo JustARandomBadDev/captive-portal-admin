@@ -68,7 +68,7 @@ func (r *Router) ticketNew(w http.ResponseWriter, req *http.Request) {
 		Title:         "Nouveau ticket",
 		ActiveNav:     "tickets",
 		Heading:       "Nouveau ticket WiFi",
-		Description:   "Creer un ticket temporaire pour un emplacement.",
+		Description:   "Créer un ticket temporaire pour un emplacement.",
 		DurationHours: 24,
 	})
 }
@@ -85,7 +85,7 @@ func (r *Router) ticketCreate(w http.ResponseWriter, req *http.Request) {
 		r.renderTicketCreateError(w, req, ticketFormPageData{
 			PitchID:       pitchID,
 			DurationHours: durationHours,
-			Error:         "La duree doit etre un nombre d'heures positif.",
+			Error:         "La durée doit être un nombre d'heures positif.",
 		}, http.StatusBadRequest)
 		return
 	}
@@ -100,7 +100,7 @@ func (r *Router) ticketCreate(w http.ResponseWriter, req *http.Request) {
 		status := http.StatusBadRequest
 		message := ticketCreateError(err)
 		if message == "" {
-			message = "Le ticket n'a pas pu etre cree."
+			message = "Le ticket n'a pas pu être créé."
 			status = http.StatusInternalServerError
 		}
 		r.renderTicketCreateError(w, req, ticketFormPageData{
@@ -156,7 +156,7 @@ func (r *Router) renderTicketForm(w http.ResponseWriter, req *http.Request, data
 		data.Heading = "Nouveau ticket WiFi"
 	}
 	if data.Description == "" {
-		data.Description = "Creer un ticket temporaire pour un emplacement."
+		data.Description = "Créer un ticket temporaire pour un emplacement."
 	}
 	if data.DurationHours == 0 {
 		data.DurationHours = 24
@@ -213,9 +213,9 @@ func ticketCreateError(err error) string {
 	case errors.Is(err, tickets.ErrPitchRequired):
 		return "Selectionnez un emplacement."
 	case errors.Is(err, tickets.ErrInvalidTicketDates):
-		return "Les dates de validite sont incoherentes."
+		return "Les dates de validité sont incohérentes."
 	case errors.Is(err, tickets.ErrDuplicateUsername):
-		return "Un identifiant identique existe deja. Reessayez."
+		return "Un identifiant identique existe déjà. Réessayez."
 	default:
 		return ""
 	}

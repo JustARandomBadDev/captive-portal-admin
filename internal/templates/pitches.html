@@ -6,7 +6,7 @@
   <a class="button" href="/pitches/new">Nouvel emplacement</a>
 </div>
 {{ if .Error }}
-<p class="error">L'action demandee n'a pas pu etre effectuee.</p>
+<p class="error">L'action demandée n'a pas pu être effectuée.</p>
 {{ end }}
 <section class="panel" aria-labelledby="pitches-title">
   <h2 id="pitches-title">Emplacements camping</h2>
@@ -15,7 +15,7 @@
     <thead>
       <tr>
         <th>Code</th>
-        <th>Libelle</th>
+        <th>Libellé</th>
         <th>Statut</th>
         <th>Action</th>
       </tr>
@@ -35,11 +35,11 @@
         <td>
           {{ if .IsActive }}
           <form class="inline" method="post" action="/pitches/{{ .ID }}/disable">
-            <button class="secondary" type="submit">Desactiver</button>
+            <button class="secondary" type="submit">Désactiver</button>
           </form>
           {{ else }}
           <form class="inline" method="post" action="/pitches/{{ .ID }}/enable">
-            <button class="secondary" type="submit">Reactiver</button>
+            <button class="secondary" type="submit">Réactiver</button>
           </form>
           {{ end }}
         </td>

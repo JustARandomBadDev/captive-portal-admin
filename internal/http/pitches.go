@@ -48,7 +48,7 @@ func (r *Router) pitchNew(w http.ResponseWriter, req *http.Request) {
 		Title:       "Nouvel emplacement",
 		ActiveNav:   "pitches",
 		Heading:     "Nouvel emplacement",
-		Description: "Creer un emplacement qui pourra recevoir des tickets WiFi.",
+		Description: "Créer un emplacement qui pourra recevoir des tickets WiFi.",
 	})
 }
 
@@ -67,14 +67,14 @@ func (r *Router) pitchCreate(w http.ResponseWriter, req *http.Request) {
 			Title:       "Nouvel emplacement",
 			ActiveNav:   "pitches",
 			Heading:     "Nouvel emplacement",
-			Description: "Creer un emplacement qui pourra recevoir des tickets WiFi.",
+			Description: "Créer un emplacement qui pourra recevoir des tickets WiFi.",
 			Code:        input.Code,
 			Label:       input.Label,
 			Error:       pitchCreateError(err),
 		}
 		status := http.StatusBadRequest
 		if data.Error == "" {
-			data.Error = "L'emplacement n'a pas pu etre cree."
+			data.Error = "L'emplacement n'a pas pu être créé."
 			status = http.StatusInternalServerError
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -133,7 +133,7 @@ func pitchCreateError(err error) string {
 	case errors.Is(err, pitches.ErrPitchCodeRequired):
 		return "Le code est obligatoire."
 	case errors.Is(err, pitches.ErrDuplicateCode):
-		return "Ce code d'emplacement existe deja."
+		return "Ce code d'emplacement existe déjà."
 	default:
 		return ""
 	}

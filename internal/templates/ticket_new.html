@@ -10,13 +10,13 @@
   <form method="post" action="/tickets">
     <label for="pitch_id">Emplacement</label>
     <select id="pitch_id" name="pitch_id" required>
-      <option value="">Selectionner un emplacement</option>
+      <option value="">Sélectionner un emplacement</option>
       {{ range .Pitches }}
       <option value="{{ .ID }}" {{ if eq $.PitchID .ID }}selected{{ end }}>{{ .Code }}{{ if .Label }} - {{ .Label }}{{ end }}</option>
       {{ end }}
     </select>
 
-    <label for="duration_hours">Duree</label>
+    <label for="duration_hours">Durée</label>
     <select id="duration_hours" name="duration_hours" required>
       <option value="6" {{ if eq .DurationHours 6 }}selected{{ end }}>6 heures</option>
       <option value="12" {{ if eq .DurationHours 12 }}selected{{ end }}>12 heures</option>
@@ -28,14 +28,14 @@
 
     <div class="toolbar">
       <a class="button secondary" href="/tickets">Annuler</a>
-      <button type="submit">Creer</button>
+      <button type="submit">Créer</button>
     </div>
   </form>
   {{ else }}
-  <p>Aucun emplacement actif disponible. Creez ou reactivez un emplacement avant de creer un ticket.</p>
+  <p>Aucun emplacement actif disponible. Créez ou réactivez un emplacement avant de créer un ticket.</p>
   <div class="toolbar">
     <a class="button secondary" href="/tickets">Retour</a>
-    <a class="button" href="/pitches/new">Creer un emplacement</a>
+    <a class="button" href="/pitches/new">Créer un emplacement</a>
   </div>
   {{ end }}
 </section>
