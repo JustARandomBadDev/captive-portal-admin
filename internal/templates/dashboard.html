@@ -4,7 +4,7 @@
 <section class="panel" aria-labelledby="status-title">
   <h2 id="status-title">État de préparation</h2>
   <p>PostgreSQL : {{ if .DatabaseConfigured }}configuration présente{{ else }}configuration en attente{{ end }}</p>
-  <p>FreeRADIUS : synchronisation non activée</p>
-  <p>Authentification admin : non activée</p>
+  <p>FreeRADIUS : synchronisation activée</p>
+  <p>Authentification admin : activée</p>
 </section>
 {{ template "layout-end" . }}

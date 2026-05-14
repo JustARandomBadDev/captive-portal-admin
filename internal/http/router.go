@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/JustARandomBadDev/captive-portal-admin/internal/adminauth"
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/config"
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/database"
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/pitches"
@@ -19,6 +20,7 @@ type Dependencies struct {
 	Templates *template.Template
 	Tickets   *tickets.Service
 	Pitches   *pitches.Service
+	AdminAuth *adminauth.Service
 }
 
 type Router struct {
@@ -28,9 +30,15 @@ type Router struct {
 	templates *template.Template
 	tickets   *tickets.Service
 	pitches   *pitches.Service
+	adminAuth *adminauth.Service
+}
+
+type viewData struct {
+	CurrentAdmin *adminauth.AdminUser
 }
 
 type pageData struct {
+	viewData
 	Title              string
 	ActiveNav          string
 	Heading            string
@@ -46,20 +54,25 @@ func NewRouter(deps Dependencies) http.Handler {
 		templates: deps.Templates,
 		tickets:   deps.Tickets,
 		pitches:   deps.Pitches,
+		adminAuth: deps.AdminAuth,
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", router.dashboard)
+	mux.HandleFunc("GET /login", router.loginForm)
+	mux.HandleFunc("POST /api/admin/auth/login", router.loginSubmit)
 	mux.HandleFunc("GET /healthz", router.healthz)
-	mux.HandleFunc("GET /tickets", router.ticketList)
-	mux.HandleFunc("GET /tickets/new", router.ticketNew)
-	mux.HandleFunc("POST /tickets", router.ticketCreate)
-	mux.HandleFunc("POST /tickets/{id}/revoke", router.ticketRevoke)
-	mux.HandleFunc("GET /pitches", router.pitchList)
-	mux.HandleFunc("GET /pitches/new", router.pitchNew)
-	mux.HandleFunc("POST /pitches", router.pitchCreate)
-	mux.HandleFunc("POST /pitches/{id}/disable", router.pitchDisable)
-	mux.HandleFunc("POST /pitches/{id}/enable", router.pitchEnable)
+	mux.Handle("GET /", router.RequireAdmin(http.HandlerFunc(router.dashboard)))
+	mux.Handle("GET /tickets", router.RequireAdmin(http.HandlerFunc(router.ticketList)))
+	mux.Handle("GET /tickets/new", router.RequireAdmin(http.HandlerFunc(router.ticketNew)))
+	mux.Handle("POST /tickets", router.RequireAdmin(http.HandlerFunc(router.ticketCreate)))
+	mux.Handle("POST /tickets/{id}/revoke", router.RequireAdmin(http.HandlerFunc(router.ticketRevoke)))
+	mux.Handle("GET /pitches", router.RequireAdmin(http.HandlerFunc(router.pitchList)))
+	mux.Handle("GET /pitches/new", router.RequireAdmin(http.HandlerFunc(router.pitchNew)))
+	mux.Handle("POST /pitches", router.RequireAdmin(http.HandlerFunc(router.pitchCreate)))
+	mux.Handle("POST /pitches/{id}/disable", router.RequireAdmin(http.HandlerFunc(router.pitchDisable)))
+	mux.Handle("POST /pitches/{id}/enable", router.RequireAdmin(http.HandlerFunc(router.pitchEnable)))
+	mux.Handle("POST /api/admin/auth/logout", router.RequireAdmin(http.HandlerFunc(router.logoutSubmit)))
+	mux.Handle("GET /api/admin/auth/me", router.RequireAdmin(http.HandlerFunc(router.authMe)))
 
 	return mux
 }
@@ -71,6 +84,7 @@ func (r *Router) dashboard(w http.ResponseWriter, req *http.Request) {
 	}
 
 	r.render(w, "dashboard.html", pageData{
+		viewData:           r.viewData(req),
 		Title:              "Camping WiFi Admin",
 		ActiveNav:          "dashboard",
 		Heading:            "Dashboard",

@@ -149,6 +149,14 @@
       display: inline;
     }
 
+    .admin-session {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #405346;
+      font-size: 0.95rem;
+    }
+
     label {
       display: block;
       margin: 16px 0 6px;
@@ -193,6 +201,14 @@
         <a href="/tickets" {{ if eq .ActiveNav "tickets" }}aria-current="page"{{ end }}>Tickets</a>
         <a href="/pitches" {{ if eq .ActiveNav "pitches" }}aria-current="page"{{ end }}>Emplacements</a>
       </nav>
+      {{ if .CurrentAdmin }}
+      <div class="admin-session">
+        <span>{{ if .CurrentAdmin.DisplayName }}{{ .CurrentAdmin.DisplayName }}{{ else }}{{ .CurrentAdmin.Username }}{{ end }}</span>
+        <form class="inline" method="post" action="/api/admin/auth/logout">
+          <button class="secondary" type="submit">Déconnexion</button>
+        </form>
+      </div>
+      {{ end }}
     </div>
   </header>
   <main>

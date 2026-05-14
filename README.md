@@ -19,6 +19,7 @@ portail client.
 APP_ADDR="127.0.0.1:8081" \
 DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
 RADIUS_DATABASE_URL="postgres://radius_user:radius_dev_password@127.0.0.1:5432/radius?sslmode=disable" \
+ADMIN_SESSION_TTL="12h" \
   go run ./cmd/admin-panel
 ```
 
@@ -29,7 +30,8 @@ make help
 APP_ADDR="127.0.0.1:8081" \
 DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
 RADIUS_DATABASE_URL="postgres://radius_user:radius_dev_password@127.0.0.1:5432/radius?sslmode=disable" \
-  make run
+ADMIN_SESSION_TTL="12h" \
+make run
 make build
 make test
 make fmt
@@ -91,11 +93,41 @@ docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 | `APP_ADDR`            | Adresse d'écoute HTTP                       | `:8080` |
 | `DATABASE_URL`        | URL PostgreSQL de la base métier admin      | requis  |
 | `RADIUS_DATABASE_URL` | URL PostgreSQL de la base FreeRADIUS        | requis  |
-| `SESSION_SECRET`      | Secret de session pour la future auth admin | vide    |
+| `SESSION_SECRET`      | Secret applicatif réservé aux sessions      | vide    |
+| `ADMIN_SESSION_TTL`   | Durée de validité d'une session admin       | `12h`   |
+| `ADMIN_COOKIE_SECURE` | Ajoute l'attribut `Secure` au cookie admin  | `false` |
+
+En production derrière HTTPS, définir `ADMIN_COOKIE_SECURE=true`.
+
+## Authentification admin
+
+Créer le premier admin après application des migrations :
+
+```sh
+DATABASE_URL="postgres://admin_user:admin_password@127.0.0.1:5432/admin?sslmode=disable" \
+  go run ./cmd/adminctl create-admin
+```
+
+La commande demande un identifiant et un mot de passe. Le mot de passe est hashé
+avec bcrypt avant insertion dans `admin_users`; il n'est jamais stocké en clair.
+
+Le panel utilise une session serveur stockée dans `admin_sessions`. Le navigateur
+reçoit seulement un cookie opaque `admin_session` :
+
+- `HttpOnly`
+- `SameSite=Lax`
+- `Path=/`
+- `Secure` selon `ADMIN_COOKIE_SECURE`
+
+Le logout révoque la session et supprime le cookie côté navigateur.
 
 ## Routes
 
 - `GET /` : dashboard placeholder.
+- `GET /login` : formulaire de connexion admin.
+- `POST /api/admin/auth/login` : création de session admin.
+- `POST /api/admin/auth/logout` : révocation de session admin.
+- `GET /api/admin/auth/me` : admin courant en JSON.
 - `GET /tickets` : liste des tickets WiFi.
 - `GET /tickets/new` : formulaire de création d'un ticket.
 - `POST /tickets` : création d'un ticket temporaire.
@@ -107,6 +139,9 @@ docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 - `POST /pitches/{id}/enable` : réactivation d'un emplacement.
 - `GET /healthz` : vérifie PostgreSQL et retourne `OK`.
 
+Toutes les routes sont protégées par authentification sauf `/healthz`, `/login`
+et `/api/admin/auth/login`.
+
 ## Organisation backend
 
 - `cmd/admin-panel` : point d'entrée.
@@ -117,7 +152,7 @@ docker pull ghcr.io/justarandombaddev/captive-portal-admin:vX.Y.Z
 - `internal/tickets` : service métier tickets WiFi.
 - `internal/pitches` : service métier emplacements.
 - `internal/radius` : service de synchronisation FreeRADIUS futur.
-- `internal/adminauth` : service d'authentification admin futur.
+- `internal/adminauth` : authentification admin, sessions et repository.
 - `internal/templates` : vues HTML serveur-side.
 
 ## Modèles métier
@@ -186,9 +221,13 @@ réussie. Les logs légaux restent gérés par `captive-portal`.
 Les migrations dans `migrations/` concernent uniquement la base métier du panel
 admin (`admin`). La migration initiale crée :
 
-- `admin_users` : placeholder minimal pour la future authentification admin.
+- `admin_users` : comptes administrateurs.
 - `pitches` : emplacements du camping.
 - `wifi_tickets` : tickets WiFi temporaires liés aux emplacements.
+
+La migration d'authentification ajoute :
+
+- `admin_sessions` : sessions serveur des administrateurs.
 
 FreeRADIUS conserve ses propres tables techniques dans la base RADIUS
 (`radcheck`, `radreply`, `radacct`, `radpostauth`, etc.). Les logs légaux de

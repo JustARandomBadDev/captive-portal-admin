@@ -52,7 +52,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	ticketRepository := tickets.NewPostgresRepository(db)
 	pitchRepository := pitches.NewPostgresRepository(db)
+	adminAuthRepository := adminauth.NewPostgresRepository(db)
 	radiusService := radius.NewService(radius.NewPostgresSyncer(radiusDB))
+	adminAuthService := adminauth.NewServiceWithRepository(adminAuthRepository, cfg.AdminSessionTTL)
 
 	app := &App{
 		Config:    cfg,
@@ -61,7 +63,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		Tickets:   tickets.NewService(ticketRepository, radiusService),
 		Pitches:   pitches.NewService(pitchRepository),
 		Radius:    radiusService,
-		AdminAuth: adminauth.NewService(cfg.SessionSecret),
+		AdminAuth: adminAuthService,
 		Templates: views,
 	}
 
@@ -72,6 +74,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		Templates: views,
 		Tickets:   app.Tickets,
 		Pitches:   app.Pitches,
+		AdminAuth: app.AdminAuth,
 	})
 
 	app.HTTPRouter = handler

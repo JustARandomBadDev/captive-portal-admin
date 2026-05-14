@@ -1,0 +1,21 @@
+{{ template "layout-start" . }}
+<h1>{{ .Heading }}</h1>
+<p>{{ .Description }}</p>
+{{ if .Error }}
+<p class="error">{{ .Error }}</p>
+{{ end }}
+<section class="panel" aria-labelledby="login-form-title">
+  <h2 id="login-form-title">Connexion</h2>
+  <form method="post" action="/api/admin/auth/login">
+    <label for="username">Identifiant</label>
+    <input id="username" name="username" value="{{ .Username }}" autocomplete="username" required autofocus>
+
+    <label for="password">Mot de passe</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+    <div class="toolbar">
+      <button type="submit">Se connecter</button>
+    </div>
+  </form>
+</section>
+{{ template "layout-end" . }}

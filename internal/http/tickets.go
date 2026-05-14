@@ -11,6 +11,7 @@ import (
 )
 
 type ticketListPageData struct {
+	viewData
 	Title       string
 	ActiveNav   string
 	Heading     string
@@ -20,6 +21,7 @@ type ticketListPageData struct {
 }
 
 type ticketFormPageData struct {
+	viewData
 	Title         string
 	ActiveNav     string
 	Heading       string
@@ -54,6 +56,7 @@ func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
 	}
 
 	r.render(w, "tickets.html", ticketListPageData{
+		viewData:    r.viewData(req),
 		Title:       "Tickets WiFi",
 		ActiveNav:   "tickets",
 		Heading:     "Tickets WiFi",
@@ -65,6 +68,7 @@ func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
 
 func (r *Router) ticketNew(w http.ResponseWriter, req *http.Request) {
 	r.renderTicketForm(w, req, ticketFormPageData{
+		viewData:      r.viewData(req),
 		Title:         "Nouveau ticket",
 		ActiveNav:     "tickets",
 		Heading:       "Nouveau ticket WiFi",
@@ -83,6 +87,7 @@ func (r *Router) ticketCreate(w http.ResponseWriter, req *http.Request) {
 	durationHours, err := strconv.Atoi(req.PostFormValue("duration_hours"))
 	if err != nil || durationHours <= 0 {
 		r.renderTicketCreateError(w, req, ticketFormPageData{
+			viewData:      r.viewData(req),
 			PitchID:       pitchID,
 			DurationHours: durationHours,
 			Error:         "La durée doit être un nombre d'heures positif.",
@@ -104,6 +109,7 @@ func (r *Router) ticketCreate(w http.ResponseWriter, req *http.Request) {
 			status = http.StatusInternalServerError
 		}
 		r.renderTicketCreateError(w, req, ticketFormPageData{
+			viewData:      r.viewData(req),
 			PitchID:       pitchID,
 			DurationHours: durationHours,
 			Error:         message,

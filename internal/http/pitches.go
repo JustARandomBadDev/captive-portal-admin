@@ -8,6 +8,7 @@ import (
 )
 
 type pitchListPageData struct {
+	viewData
 	Title       string
 	ActiveNav   string
 	Heading     string
@@ -17,6 +18,7 @@ type pitchListPageData struct {
 }
 
 type pitchFormPageData struct {
+	viewData
 	Title       string
 	ActiveNav   string
 	Heading     string
@@ -34,6 +36,7 @@ func (r *Router) pitchList(w http.ResponseWriter, req *http.Request) {
 	}
 
 	r.render(w, "pitches.html", pitchListPageData{
+		viewData:    r.viewData(req),
 		Title:       "Emplacements",
 		ActiveNav:   "pitches",
 		Heading:     "Emplacements",
@@ -45,6 +48,7 @@ func (r *Router) pitchList(w http.ResponseWriter, req *http.Request) {
 
 func (r *Router) pitchNew(w http.ResponseWriter, req *http.Request) {
 	r.renderPitchForm(w, pitchFormPageData{
+		viewData:    r.viewData(req),
 		Title:       "Nouvel emplacement",
 		ActiveNav:   "pitches",
 		Heading:     "Nouvel emplacement",
@@ -64,6 +68,7 @@ func (r *Router) pitchCreate(w http.ResponseWriter, req *http.Request) {
 	}
 	if _, err := r.pitches.Create(req.Context(), input); err != nil {
 		data := pitchFormPageData{
+			viewData:    r.viewData(req),
 			Title:       "Nouvel emplacement",
 			ActiveNav:   "pitches",
 			Heading:     "Nouvel emplacement",
