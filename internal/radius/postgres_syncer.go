@@ -5,11 +5,18 @@ import (
 	"time"
 
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/database"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const zywallGuestClass = "WIFI_GUEST"
+
 type PostgresSyncer struct {
 	pool *pgxpool.Pool
+}
+
+type radiusExecutor interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
 func NewPostgresSyncer(db *database.Handle) *PostgresSyncer {
@@ -59,7 +66,26 @@ VALUES ($1, 'Expiration', ':=', $2)
 		return err
 	}
 
+	if err := s.ensureZywallGuestClassReply(ctx, tx, ticket.Username); err != nil {
+		return err
+	}
+
 	return tx.Commit(ctx)
+}
+
+func (s *PostgresSyncer) ensureZywallGuestClassReply(ctx context.Context, exec radiusExecutor, username string) error {
+	_, err := exec.Exec(ctx, `
+INSERT INTO radreply (username, attribute, op, value)
+SELECT $1, 'Class', ':=', $2
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM radreply
+    WHERE username = $1
+      AND attribute = 'Class'
+      AND value = $2
+)
+`, username, zywallGuestClass)
+	return err
 }
 
 func (s *PostgresSyncer) RevokeTicket(ctx context.Context, ticket Ticket) error {
