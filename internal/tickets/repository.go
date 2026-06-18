@@ -11,6 +11,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id string) (Ticket, error)
 	ListActive(ctx context.Context, now time.Time) ([]Ticket, error)
 	ListAll(ctx context.Context) ([]Ticket, error)
+	ListFiltered(ctx context.Context, filters TicketListFilters) ([]Ticket, error)
 	Revoke(ctx context.Context, input TicketRevokeInput) (Ticket, error)
 	MarkExpired(ctx context.Context, now time.Time) (int, error)
 	MarkRadiusSynced(ctx context.Context, id string, syncedAt time.Time) error

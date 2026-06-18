@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/database"
@@ -91,6 +93,50 @@ func (r *PostgresRepository) ListAll(ctx context.Context) ([]Ticket, error) {
 	rows, err := r.pool.Query(ctx, ticketSelectSQL()+`
 ORDER BY created_at DESC, username ASC
 `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanTickets(rows)
+}
+
+func (r *PostgresRepository) ListFiltered(ctx context.Context, filters TicketListFilters) ([]Ticket, error) {
+	query := `
+SELECT
+    wt.id::text, wt.username, wt.cleartext_password, wt.pitch_id::text, wt.status,
+    wt.valid_from, wt.valid_until, wt.created_by::text, wt.created_at,
+    wt.revoked_at, wt.revoked_by::text, wt.radius_synced_at
+FROM wifi_tickets wt
+JOIN pitches p ON p.id = wt.pitch_id
+`
+	where := make([]string, 0, 4)
+	args := make([]any, 0, 4)
+
+	if filters.Search != "" {
+		args = append(args, "%"+filters.Search+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		where = append(where, "(wt.username ILIKE "+placeholder+" OR p.code ILIKE "+placeholder+" OR p.label ILIKE "+placeholder+")")
+	}
+	if filters.Status != "" {
+		args = append(args, filters.Status)
+		where = append(where, fmt.Sprintf("wt.status = $%d", len(args)))
+	}
+	if filters.Duration > 0 {
+		args = append(args, int(filters.Duration.Seconds()))
+		where = append(where, fmt.Sprintf("wt.valid_until = wt.valid_from + make_interval(secs => $%d)", len(args)))
+	}
+	if filters.CreatedSince != nil {
+		args = append(args, *filters.CreatedSince)
+		where = append(where, fmt.Sprintf("wt.created_at >= $%d", len(args)))
+	}
+
+	if len(where) > 0 {
+		query += "WHERE " + strings.Join(where, "\n  AND ") + "\n"
+	}
+	query += "ORDER BY wt.created_at DESC, wt.username ASC"
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

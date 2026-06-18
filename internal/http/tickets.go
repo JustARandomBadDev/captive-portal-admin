@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/JustARandomBadDev/captive-portal-admin/internal/pitches"
@@ -17,6 +18,11 @@ type ticketListPageData struct {
 	Heading     string
 	Description string
 	Tickets     []ticketRow
+	ResultCount int
+	Search      string
+	Status      string
+	Duration    string
+	Created     string
 	Error       string
 }
 
@@ -43,7 +49,8 @@ type ticketRow struct {
 }
 
 func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
-	allTickets, err := r.tickets.ListAll(req.Context())
+	filters := parseTicketListFilters(req)
+	allTickets, err := r.tickets.ListFiltered(req.Context(), filters.Filters)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -62,6 +69,11 @@ func (r *Router) ticketList(w http.ResponseWriter, req *http.Request) {
 		Heading:     "Tickets WiFi",
 		Description: "Gestion des tickets WiFi temporaires.",
 		Tickets:     buildTicketRows(allTickets, allPitches),
+		ResultCount: len(allTickets),
+		Search:      filters.Search,
+		Status:      filters.Status,
+		Duration:    filters.Duration,
+		Created:     filters.Created,
 		Error:       req.URL.Query().Get("error"),
 	})
 }
@@ -225,4 +237,63 @@ func ticketCreateError(err error) string {
 	default:
 		return ""
 	}
+}
+
+type parsedTicketListFilters struct {
+	Filters  tickets.TicketListFilters
+	Search   string
+	Status   string
+	Duration string
+	Created  string
+}
+
+func parseTicketListFilters(req *http.Request) parsedTicketListFilters {
+	query := req.URL.Query()
+	parsed := parsedTicketListFilters{
+		Search:   strings.TrimSpace(query.Get("search")),
+		Status:   query.Get("status"),
+		Duration: query.Get("duration"),
+		Created:  query.Get("created"),
+	}
+	parsed.Filters.Search = parsed.Search
+
+	switch parsed.Status {
+	case string(tickets.TicketStatusActive):
+		parsed.Filters.Status = tickets.TicketStatusActive
+	case string(tickets.TicketStatusExpired):
+		parsed.Filters.Status = tickets.TicketStatusExpired
+	case string(tickets.TicketStatusRevoked):
+		parsed.Filters.Status = tickets.TicketStatusRevoked
+	default:
+		parsed.Status = ""
+	}
+
+	switch parsed.Duration {
+	case "1d":
+		parsed.Filters.Duration = 24 * time.Hour
+	case "7d":
+		parsed.Filters.Duration = 7 * 24 * time.Hour
+	case "30d":
+		parsed.Filters.Duration = 30 * 24 * time.Hour
+	default:
+		parsed.Duration = ""
+	}
+
+	now := time.Now()
+	switch parsed.Created {
+	case "today":
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		parsed.Filters.CreatedSince = &start
+	case "week":
+		weekdayOffset := (int(now.Weekday()) + 6) % 7
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -weekdayOffset)
+		parsed.Filters.CreatedSince = &start
+	case "month":
+		start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		parsed.Filters.CreatedSince = &start
+	default:
+		parsed.Created = ""
+	}
+
+	return parsed
 }

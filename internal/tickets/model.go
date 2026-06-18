@@ -43,3 +43,11 @@ type TicketRevokeInput struct {
 	RevokedBy string
 	RevokedAt time.Time
 }
+
+// TicketListFilters contains the optional filters used by the admin ticket list.
+type TicketListFilters struct {
+	Search       string
+	Status       TicketStatus
+	Duration     time.Duration
+	CreatedSince *time.Time
+}

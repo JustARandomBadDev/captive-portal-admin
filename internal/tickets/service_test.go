@@ -175,6 +175,31 @@ func TestListAllMarksExpired(t *testing.T) {
 	}
 }
 
+func TestListFilteredMarksExpiredAndPassesFilters(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	repository := &fakeRepository{}
+	service := NewService(repository)
+	service.now = func() time.Time { return now }
+
+	filters := TicketListFilters{
+		Search:   "A01",
+		Status:   TicketStatusActive,
+		Duration: 24 * time.Hour,
+	}
+	_, err := service.ListFiltered(context.Background(), filters)
+	if err != nil {
+		t.Fatalf("list filtered tickets: %v", err)
+	}
+	if !repository.markExpiredAt.Equal(now) {
+		t.Fatalf("expected MarkExpired at %v, got %v", now, repository.markExpiredAt)
+	}
+	if repository.filters.Search != filters.Search ||
+		repository.filters.Status != filters.Status ||
+		repository.filters.Duration != filters.Duration {
+		t.Fatalf("filters = %+v, want %+v", repository.filters, filters)
+	}
+}
+
 func TestListAllDeletesExpiredRadiusCredentials(t *testing.T) {
 	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 	repository := &fakeRepository{
@@ -291,6 +316,7 @@ type fakeRepository struct {
 	markExpiredAt  time.Time
 	radiusSyncedID string
 	tickets        []Ticket
+	filters        TicketListFilters
 }
 
 func (r *fakeRepository) Create(ctx context.Context, input TicketCreateInput) (Ticket, error) {
@@ -317,6 +343,11 @@ func (r *fakeRepository) ListActive(ctx context.Context, now time.Time) ([]Ticke
 }
 
 func (r *fakeRepository) ListAll(ctx context.Context) ([]Ticket, error) {
+	return r.tickets, nil
+}
+
+func (r *fakeRepository) ListFiltered(ctx context.Context, filters TicketListFilters) ([]Ticket, error) {
+	r.filters = filters
 	return r.tickets, nil
 }
 
