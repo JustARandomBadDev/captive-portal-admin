@@ -1,10 +1,101 @@
 {{ template "layout-start" . }}
+<style>
+  .quick-actions,
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .quick-action {
+    min-height: 64px;
+    font-size: 1rem;
+  }
+
+  .stat-card {
+    padding: 16px;
+    border: 1px solid #d8dfd1;
+    border-radius: 8px;
+    background: #f9fbf6;
+  }
+
+  .stat-value {
+    display: block;
+    margin-top: 8px;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #17211b;
+  }
+</style>
 <h1>{{ .Heading }}</h1>
 <p>{{ .Description }}</p>
-<section class="panel" aria-labelledby="status-title">
-  <h2 id="status-title">État de préparation</h2>
-  <p>PostgreSQL : {{ if .DatabaseConfigured }}configuration présente{{ else }}configuration en attente{{ end }}</p>
-  <p>FreeRADIUS : synchronisation activée</p>
-  <p>Authentification admin : activée</p>
+
+<section class="panel" aria-labelledby="quick-actions-title">
+  <h2 id="quick-actions-title">Actions rapides</h2>
+  <div class="quick-actions">
+    <a class="button quick-action" href="/tickets/new">Nouveau ticket</a>
+    <a class="button secondary quick-action" href="/tickets/print">Imprimer des tickets</a>
+    <a class="button secondary quick-action" href="/tickets">Voir les tickets</a>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="today-title">
+  <h2 id="today-title">Aujourd'hui</h2>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span>Tickets créés aujourd'hui</span>
+      <span class="stat-value">{{ .CreatedToday }}</span>
+    </div>
+    <div class="stat-card">
+      <span>Tickets actifs</span>
+      <span class="stat-value">{{ .ActiveTickets }}</span>
+    </div>
+    <div class="stat-card">
+      <span>Tickets expirent aujourd'hui</span>
+      <span class="stat-value">{{ .ExpiringToday }}</span>
+    </div>
+    <div class="stat-card">
+      <span>Tickets révoqués aujourd'hui</span>
+      <span class="stat-value">{{ .RevokedToday }}</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="recent-tickets-title">
+  <div class="toolbar">
+    <h2 id="recent-tickets-title">Derniers tickets</h2>
+    <a class="button secondary" href="/tickets">Voir tous les tickets</a>
+  </div>
+  {{ if .RecentTickets }}
+  <table>
+    <thead>
+      <tr>
+        <th>Créé le</th>
+        <th>Emplacement</th>
+        <th>Identifiant</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .RecentTickets }}
+      <tr>
+        <td>{{ .CreatedAt }}</td>
+        <td>{{ .PitchCode }}</td>
+        <td>{{ .Username }}</td>
+        <td>
+          {{ if eq .Status "Actif" }}
+          <span class="badge">{{ .Status }}</span>
+          {{ else }}
+          <span class="badge inactive">{{ .Status }}</span>
+          {{ end }}
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ else }}
+  <p>Aucun ticket pour l'instant.</p>
+  {{ end }}
 </section>
 {{ template "layout-end" . }}

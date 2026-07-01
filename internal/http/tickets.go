@@ -38,6 +38,22 @@ type ticketFormPageData struct {
 	Error         string
 }
 
+type ticketPrintSelectPageData struct {
+	viewData
+	Title       string
+	ActiveNav   string
+	Heading     string
+	Description string
+	Tickets     []ticketRow
+	Error       string
+}
+
+type ticketPrintPageData struct {
+	Title   string
+	Tickets []ticketRow
+	Message string
+}
+
 type ticketRow struct {
 	ID         string
 	Username   string
@@ -45,6 +61,7 @@ type ticketRow struct {
 	PitchCode  string
 	Status     string
 	ValidUntil string
+	CreatedAt  string
 	CanRevoke  bool
 }
 
@@ -87,6 +104,54 @@ func (r *Router) ticketNew(w http.ResponseWriter, req *http.Request) {
 		Description:   "Créer un ticket temporaire pour un emplacement.",
 		DurationHours: 24,
 	})
+}
+
+func (r *Router) ticketPrintSelect(w http.ResponseWriter, req *http.Request) {
+	rows, err := r.activeTicketRows(req)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	errorMessage := ""
+	if req.URL.Query().Get("error") == "no_selection" {
+		errorMessage = "Sélectionnez au moins un ticket actif."
+	}
+
+	r.render(w, "ticket_print_select.html", ticketPrintSelectPageData{
+		viewData:    r.viewData(req),
+		Title:       "Imprimer des tickets",
+		ActiveNav:   "tickets",
+		Heading:     "Imprimer des tickets",
+		Description: "Cochez les tickets actifs à imprimer pour l'accueil.",
+		Tickets:     rows,
+		Error:       errorMessage,
+	})
+}
+
+func (r *Router) ticketPrintView(w http.ResponseWriter, req *http.Request) {
+	ids := req.URL.Query()["id"]
+	if len(ids) == 0 {
+		http.Redirect(w, req, "/tickets/print?error=no_selection", http.StatusSeeOther)
+		return
+	}
+
+	rows, err := r.activeTicketRows(req)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	selected := selectTicketRowsByID(rows, ids)
+	data := ticketPrintPageData{
+		Title:   "Tickets WiFi à imprimer",
+		Tickets: selected,
+	}
+	if len(selected) == 0 {
+		data.Message = "Aucun ticket sélectionné n'est imprimable."
+	}
+
+	r.render(w, "ticket_print.html", data)
 }
 
 func (r *Router) ticketCreate(w http.ResponseWriter, req *http.Request) {
@@ -199,11 +264,47 @@ func buildTicketRows(items []tickets.Ticket, allPitches []pitches.Pitch) []ticke
 			PitchCode:  pitchLabel(ticket.PitchID, pitchCodes),
 			Status:     ticketStatusLabel(ticket.Status),
 			ValidUntil: ticket.ValidUntil.Format("02/01/2006 15:04"),
+			CreatedAt:  ticket.CreatedAt.Format("02/01/2006 15:04"),
 			CanRevoke:  ticket.Status == tickets.TicketStatusActive,
 		})
 	}
 
 	return rows
+}
+
+func (r *Router) activeTicketRows(req *http.Request) ([]ticketRow, error) {
+	activeTickets, err := r.tickets.ListFiltered(req.Context(), tickets.TicketListFilters{
+		Status: tickets.TicketStatusActive,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	allPitches, err := r.pitches.ListAll(req.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	return buildTicketRows(activeTickets, allPitches), nil
+}
+
+func selectTicketRowsByID(rows []ticketRow, ids []string) []ticketRow {
+	wanted := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			wanted[id] = struct{}{}
+		}
+	}
+
+	selected := make([]ticketRow, 0, len(rows))
+	for _, row := range rows {
+		if _, ok := wanted[row.ID]; ok {
+			selected = append(selected, row)
+		}
+	}
+
+	return selected
 }
 
 func pitchLabel(id string, pitchCodes map[string]string) string {

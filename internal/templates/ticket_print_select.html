@@ -1,0 +1,57 @@
+{{ template "layout-start" . }}
+<h1>{{ .Heading }}</h1>
+<p>{{ .Description }}</p>
+{{ if .Error }}
+<p class="error">{{ .Error }}</p>
+{{ end }}
+<section class="panel" aria-labelledby="ticket-print-title">
+  <h2 id="ticket-print-title">Tickets actifs</h2>
+  {{ if .Tickets }}
+  <form method="get" action="/tickets/print/view" target="_blank">
+    <table>
+      <thead>
+        <tr>
+          <th>Imprimer</th>
+          <th>Identifiant</th>
+          <th>Mot de passe</th>
+          <th>Emplacement</th>
+          <th>Valide jusqu'au</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Tickets }}
+        <tr>
+          <td><input type="checkbox" name="id" value="{{ .ID }}" style="width: auto; min-height: auto;"></td>
+          <td>{{ .Username }}</td>
+          <td>{{ .Password }}</td>
+          <td>{{ .PitchCode }}</td>
+          <td>{{ .ValidUntil }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+    <div class="toolbar">
+      <a class="button secondary" href="/tickets">Retour</a>
+      <div>
+        <button class="secondary" type="button" id="toggle-ticket-selection">Tout sélectionner</button>
+        <button type="submit">Générer l'impression</button>
+      </div>
+    </div>
+  </form>
+  <script>
+    document.getElementById("toggle-ticket-selection").addEventListener("click", function () {
+      const checkboxes = document.querySelectorAll('input[name="id"]');
+      const shouldCheck = Array.from(checkboxes).some((checkbox) => !checkbox.checked);
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = shouldCheck;
+      });
+    });
+  </script>
+  {{ else }}
+  <p>Aucun ticket actif à imprimer.</p>
+  <div class="toolbar">
+    <a class="button secondary" href="/tickets">Retour</a>
+  </div>
+  {{ end }}
+</section>
+{{ template "layout-end" . }}

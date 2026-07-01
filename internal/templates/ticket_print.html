@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #111;
+      background: #fff;
+    }
+
+    .print-note {
+      margin: 0 0 16px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .ticket-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8mm;
+    }
+
+    .ticket-card {
+      min-height: 78mm;
+      border: 1px solid #000;
+      padding: 8mm;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .ticket-title {
+      margin: 0 0 8mm;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .ticket-row {
+      margin: 0 0 4mm;
+      font-size: 15px;
+    }
+
+    .ticket-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .ticket-value {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .ticket-small {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media print {
+      .print-note {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    window.addEventListener("load", () => window.print());
+  </script>
+  {{ if .Tickets }}
+  <p class="print-note">Utilisez l'impression du navigateur pour imprimer cette page.</p>
+  <main class="ticket-grid">
+    {{ range .Tickets }}
+    <article class="ticket-card">
+      <h1 class="ticket-title">WiFi Camping</h1>
+      <p class="ticket-row">
+        <span class="ticket-label">Identifiant</span>
+        <span class="ticket-value">{{ .Username }}</span>
+      </p>
+      <p class="ticket-row">
+        <span class="ticket-label">Mot de passe</span>
+        <span class="ticket-value">{{ .Password }}</span>
+      </p>
+      <p class="ticket-row">
+        <span class="ticket-label">Emplacement</span>
+        <span>{{ .PitchCode }}</span>
+      </p>
+      <p class="ticket-row">
+        <span class="ticket-label">Valide jusqu'au</span>
+        <span>{{ .ValidUntil }}</span>
+      </p>
+      <p class="ticket-row">
+        <span class="ticket-label">Créé le</span>
+        <span>{{ .CreatedAt }}</span>
+      </p>
+      <p class="ticket-small">Conservez ce ticket pendant la durée de votre séjour.</p>
+    </article>
+    {{ end }}
+  </main>
+  {{ else }}
+  <p>{{ .Message }}</p>
+  {{ end }}
+</body>
+</html>

@@ -42,3 +42,20 @@ func TestParseTicketListFiltersIgnoresUnknownValues(t *testing.T) {
 		t.Fatalf("created = %q / %v, want empty", filters.Created, filters.Filters.CreatedSince)
 	}
 }
+
+func TestSelectTicketRowsByIDKeepsActiveRowsOrder(t *testing.T) {
+	rows := []ticketRow{
+		{ID: "ticket-1", Username: "first"},
+		{ID: "ticket-2", Username: "second"},
+		{ID: "ticket-3", Username: "third"},
+	}
+
+	selected := selectTicketRowsByID(rows, []string{"ticket-3", "unknown", "ticket-1"})
+
+	if len(selected) != 2 {
+		t.Fatalf("len(selected) = %d, want 2", len(selected))
+	}
+	if selected[0].ID != "ticket-1" || selected[1].ID != "ticket-3" {
+		t.Fatalf("selected IDs = %q, %q, want ticket-1, ticket-3", selected[0].ID, selected[1].ID)
+	}
+}

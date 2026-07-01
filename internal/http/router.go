@@ -39,11 +39,23 @@ type viewData struct {
 
 type pageData struct {
 	viewData
-	Title              string
-	ActiveNav          string
-	Heading            string
-	Description        string
-	DatabaseConfigured bool
+	Title       string
+	ActiveNav   string
+	Heading     string
+	Description string
+}
+
+type dashboardPageData struct {
+	viewData
+	Title         string
+	ActiveNav     string
+	Heading       string
+	Description   string
+	CreatedToday  int
+	ActiveTickets int
+	ExpiringToday int
+	RevokedToday  int
+	RecentTickets []ticketRow
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -64,6 +76,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /", router.RequireAdmin(http.HandlerFunc(router.dashboard)))
 	mux.Handle("GET /tickets", router.RequireAdmin(http.HandlerFunc(router.ticketList)))
 	mux.Handle("GET /tickets/new", router.RequireAdmin(http.HandlerFunc(router.ticketNew)))
+	mux.Handle("GET /tickets/print", router.RequireAdmin(http.HandlerFunc(router.ticketPrintSelect)))
+	mux.Handle("GET /tickets/print/view", router.RequireAdmin(http.HandlerFunc(router.ticketPrintView)))
 	mux.Handle("POST /tickets", router.RequireAdmin(http.HandlerFunc(router.ticketCreate)))
 	mux.Handle("POST /tickets/{id}/revoke", router.RequireAdmin(http.HandlerFunc(router.ticketRevoke)))
 	mux.Handle("GET /pitches", router.RequireAdmin(http.HandlerFunc(router.pitchList)))
@@ -83,14 +97,69 @@ func (r *Router) dashboard(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	r.render(w, "dashboard.html", pageData{
-		viewData:           r.viewData(req),
-		Title:              "Camping WiFi Admin",
-		ActiveNav:          "dashboard",
-		Heading:            "Dashboard",
-		Description:        "Vue d'ensemble du panel admin local.",
-		DatabaseConfigured: r.cfg.DatabaseURL != "",
+	allTickets, err := r.tickets.ListAll(req.Context())
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	allPitches, err := r.pitches.ListAll(req.Context())
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	stats := dashboardStats(allTickets, time.Now())
+	recentTickets := buildTicketRows(firstTickets(allTickets, 5), allPitches)
+
+	r.render(w, "dashboard.html", dashboardPageData{
+		viewData:      r.viewData(req),
+		Title:         "Camping WiFi Admin",
+		ActiveNav:     "dashboard",
+		Heading:       "Dashboard",
+		Description:   "Bienvenue sur le portail d'administration du Wi-Fi.",
+		RecentTickets: recentTickets,
+		CreatedToday:  stats.createdToday,
+		ActiveTickets: stats.activeTickets,
+		ExpiringToday: stats.expiringToday,
+		RevokedToday:  stats.revokedToday,
 	})
+}
+
+type dashboardTicketStats struct {
+	createdToday  int
+	activeTickets int
+	expiringToday int
+	revokedToday  int
+}
+
+func dashboardStats(items []tickets.Ticket, now time.Time) dashboardTicketStats {
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	startOfTomorrow := startOfDay.AddDate(0, 0, 1)
+	var stats dashboardTicketStats
+
+	for _, ticket := range items {
+		if !ticket.CreatedAt.Before(startOfDay) && ticket.CreatedAt.Before(startOfTomorrow) {
+			stats.createdToday++
+		}
+		if ticket.Status == tickets.TicketStatusActive {
+			stats.activeTickets++
+			if !ticket.ValidUntil.Before(startOfDay) && ticket.ValidUntil.Before(startOfTomorrow) {
+				stats.expiringToday++
+			}
+		}
+		if ticket.RevokedAt != nil && !ticket.RevokedAt.Before(startOfDay) && ticket.RevokedAt.Before(startOfTomorrow) {
+			stats.revokedToday++
+		}
+	}
+
+	return stats
+}
+
+func firstTickets(items []tickets.Ticket, limit int) []tickets.Ticket {
+	if len(items) <= limit {
+		return items
+	}
+	return items[:limit]
 }
 
 func (r *Router) healthz(w http.ResponseWriter, req *http.Request) {

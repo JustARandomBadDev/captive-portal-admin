@@ -3,40 +3,61 @@
 <p>{{ .Description }}</p>
 <div class="toolbar">
   <span>{{ .ResultCount }} ticket{{ if ne .ResultCount 1 }}s{{ end }}</span>
-  <a class="button" href="/tickets/new">Nouveau ticket</a>
+  <div>
+    <a class="button secondary" type="button" id="ticket-filters-toggle" aria-controls="ticket-filters" aria-expanded="{{ if or .Search .Status .Duration .Created }}true{{ else }}false{{ end }}">Filtres</a>
+    <a class="button secondary" href="/tickets/print">Imprimer</a>
+    <a class="button" href="/tickets/new">Nouveau ticket</a>
+  </div>
 </div>
 {{ if .Error }}
 <p class="error">L'action demandée n'a pas pu être effectuée.</p>
 {{ end }}
-<section class="panel" aria-labelledby="ticket-filters-title">
+<section class="panel" id="ticket-filters" aria-labelledby="ticket-filters-title" {{ if not (or .Search .Status .Duration .Created) }}hidden{{ end }}>
   <h2 id="ticket-filters-title">Recherche</h2>
+  <style>
+    .ticket-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 16px;
+    }
+  </style>
   <form method="get" action="/tickets">
-    <label for="search">Recherche</label>
-    <input id="search" name="search" value="{{ .Search }}" placeholder="Identifiant ou emplacement">
+    <div class="ticket-filter-grid">
+      <div>
+        <label for="search">Recherche</label>
+        <input id="search" name="search" value="{{ .Search }}" placeholder="Identifiant ou emplacement">
+      </div>
 
-    <label for="status">Statut</label>
-    <select id="status" name="status">
-      <option value="" {{ if eq .Status "" }}selected{{ end }}>Tous</option>
-      <option value="active" {{ if eq .Status "active" }}selected{{ end }}>Actifs</option>
-      <option value="expired" {{ if eq .Status "expired" }}selected{{ end }}>Expirés</option>
-      <option value="revoked" {{ if eq .Status "revoked" }}selected{{ end }}>Révoqués</option>
-    </select>
+      <div>
+        <label for="status">Statut</label>
+        <select id="status" name="status">
+          <option value="" {{ if eq .Status "" }}selected{{ end }}>Tous</option>
+          <option value="active" {{ if eq .Status "active" }}selected{{ end }}>Actifs</option>
+          <option value="expired" {{ if eq .Status "expired" }}selected{{ end }}>Expirés</option>
+          <option value="revoked" {{ if eq .Status "revoked" }}selected{{ end }}>Révoqués</option>
+        </select>
+      </div>
 
-    <label for="duration">Durée</label>
-    <select id="duration" name="duration">
-      <option value="" {{ if eq .Duration "" }}selected{{ end }}>Toutes</option>
-      <option value="1d" {{ if eq .Duration "1d" }}selected{{ end }}>1 jour</option>
-      <option value="7d" {{ if eq .Duration "7d" }}selected{{ end }}>7 jours</option>
-      <option value="30d" {{ if eq .Duration "30d" }}selected{{ end }}>30 jours</option>
-    </select>
+      <div>
+        <label for="duration">Durée</label>
+        <select id="duration" name="duration">
+          <option value="" {{ if eq .Duration "" }}selected{{ end }}>Toutes</option>
+          <option value="1d" {{ if eq .Duration "1d" }}selected{{ end }}>1 jour</option>
+          <option value="7d" {{ if eq .Duration "7d" }}selected{{ end }}>7 jours</option>
+          <option value="30d" {{ if eq .Duration "30d" }}selected{{ end }}>30 jours</option>
+        </select>
+      </div>
 
-    <label for="created">Date de création</label>
-    <select id="created" name="created">
-      <option value="" {{ if eq .Created "" }}selected{{ end }}>Toutes</option>
-      <option value="today" {{ if eq .Created "today" }}selected{{ end }}>Aujourd'hui</option>
-      <option value="week" {{ if eq .Created "week" }}selected{{ end }}>Cette semaine</option>
-      <option value="month" {{ if eq .Created "month" }}selected{{ end }}>Ce mois</option>
-    </select>
+      <div>
+        <label for="created">Date de création</label>
+        <select id="created" name="created">
+          <option value="" {{ if eq .Created "" }}selected{{ end }}>Toutes</option>
+          <option value="today" {{ if eq .Created "today" }}selected{{ end }}>Aujourd'hui</option>
+          <option value="week" {{ if eq .Created "week" }}selected{{ end }}>Cette semaine</option>
+          <option value="month" {{ if eq .Created "month" }}selected{{ end }}>Ce mois</option>
+        </select>
+      </div>
+    </div>
 
     <div class="toolbar">
       <a class="button secondary" href="/tickets">Réinitialiser</a>
@@ -44,6 +65,14 @@
     </div>
   </form>
 </section>
+<script>
+  document.getElementById("ticket-filters-toggle").addEventListener("click", function () {
+    const filters = document.getElementById("ticket-filters");
+    const shouldShow = filters.hasAttribute("hidden");
+    filters.toggleAttribute("hidden", !shouldShow);
+    this.setAttribute("aria-expanded", shouldShow ? "true" : "false");
+  });
+</script>
 <section class="panel" aria-labelledby="tickets-title">
   <h2 id="tickets-title">Tickets temporaires</h2>
   {{ if .Tickets }}
